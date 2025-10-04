@@ -24,9 +24,6 @@ class Settings:
         "exp://192.168.1.100:8081",  # Expo development
     ]
     
-    # JWT settings
-    JWT_SECRET_KEY: str = "your-jwt-secret-key-change-in-production"
-    JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    # Auth via Supabase; no local JWT settings needed
 
 settings = Settings()
