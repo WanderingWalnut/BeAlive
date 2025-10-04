@@ -79,3 +79,16 @@ docker-compose.override.yml
 *.key
 *.lock
 __snapshot__/
+
+# Supabase CLI metadata
+supabase/.branches
+supabase/.temp
+supabase/.env
+supabase/functions/.env
+supabase/.build
+supabase/config.toml
+supabase/project-ref
+supabase/*-version
+supabase/pooler-url
+supabase/cli-latest
+
