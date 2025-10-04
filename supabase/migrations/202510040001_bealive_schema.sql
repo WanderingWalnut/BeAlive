@@ -251,3 +251,78 @@ from anon;
 revoke all on all functions in schema public
 from anon;
 grant usage on schema public to authenticated;
+-- ==========================================================
+-- 9) CONTACT IMPORT SUPPORT
+-- ==========================================================
+create table if not exists public.user_contacts (
+    owner_id uuid not null references auth.users(id) on delete cascade,
+    phone_e164 text not null,
+    contact_name text,
+    phone_hash text,
+    matched_user_id uuid references auth.users(id) on delete
+    set null,
+        created_at timestamptz not null default now(),
+        primary key (owner_id, phone_e164)
+);
+alter table public.user_contacts enable row level security;
+create policy "contacts_owner_crud" on public.user_contacts for all to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+-- RPC: match a list of E.164 phone numbers to existing users and connect
+-- Returns matched user ids
+create or replace function public.match_contacts_and_connect(p_phones text []) returns setof uuid language plpgsql security definer
+set search_path = public,
+    auth as $$
+declare r record;
+begin for r in
+select id
+from auth.users
+where phone = any(p_phones)
+    and id <> auth.uid() loop
+insert into public.connections (requester_id, addressee_id, status)
+values (auth.uid(), r.id, 'accepted') on conflict (requester_id, addressee_id) do
+update
+set status = excluded.status;
+return next r.id;
+end loop;
+return;
+end;
+$$;
+grant execute on function public.match_contacts_and_connect(text []) to authenticated;
+-- ==========================================================
+-- 10) STORAGE: POSTS BUCKET + POLICIES (private; owner-only access)
+-- ==========================================================
+do $$ begin if not exists (
+    select 1
+    from storage.buckets
+    where id = 'posts'
+) then perform storage.create_bucket('posts', false);
+end if;
+end $$;
+-- Ensure RLS is enabled on storage objects (usually enabled by default)
+alter table if exists storage.objects enable row level security;
+-- Reset and create owner-only policies on storage.objects for 'posts' bucket
+drop policy if exists "posts_owner_select" on storage.objects;
+drop policy if exists "posts_owner_insert" on storage.objects;
+drop policy if exists "posts_owner_update" on storage.objects;
+drop policy if exists "posts_owner_delete" on storage.objects;
+create policy "posts_owner_select" on storage.objects for
+select to authenticated using (
+        bucket_id = 'posts'
+        and owner = auth.uid()
+    );
+create policy "posts_owner_insert" on storage.objects for
+insert to authenticated with check (
+        bucket_id = 'posts'
+        and owner = auth.uid()
+    );
+create policy "posts_owner_update" on storage.objects for
+update to authenticated using (
+        bucket_id = 'posts'
+        and owner = auth.uid()
+    ) with check (
+        bucket_id = 'posts'
+        and owner = auth.uid()
+    );
+create policy "posts_owner_delete" on storage.objects for delete to authenticated using (
+    bucket_id = 'posts'
+    and owner = auth.uid()
+);
