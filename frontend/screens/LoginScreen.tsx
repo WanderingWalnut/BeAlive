@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
+import { supabase } from "../lib/supabase";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
@@ -36,13 +37,22 @@ export default function LoginScreen({ navigation }: Props) {
     }
     try {
       setLoading(true);
-      // TODO: call your OTP provider (Firebase, Supabase, Twilio, etc.)
-      // await sendOtp(phone);
+      const normalized = phone.replace(/\s/g, "");
 
-      // Navigate to OTP screen with the phone value
-      navigation.navigate("OTP", { phone: phone.replace(/\s/g, "") });
-    } catch (e) {
-      setError("Could not send code. Please try again.");
+      // Supabase: send SMS; creates user if they don’t exist
+      const { error: sbError } = await supabase.auth.signInWithOtp({
+        phone: normalized,
+        options: {
+          channel: 'sms',
+          shouldCreateUser: true, // treat login/signup the same — first time creates
+        },
+      });
+
+      if (sbError) throw sbError;
+
+      navigation.navigate("OTP", { phone: normalized });
+    } catch (e: any) {
+      setError(e?.message ?? "Could not send code. Please try again.");
     } finally {
       setLoading(false);
     }
