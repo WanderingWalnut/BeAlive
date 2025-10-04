@@ -1,0 +1,81 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.db
+*.sqlite3
+
+# Virtual environments
+.env
+.venv
+venv/
+ENV/
+env/
+pip-wheel-metadata/
+*.egg-info/
+.eggs/
+
+# Build / distribution artifacts
+build/
+dist/
+*.egg
+*.manifest
+*.spec
+
+# Byte-compiled / cache / logs
+*.log
+*.pot
+*.pyc
+*.mypy_cache/
+*.pytest_cache/
+.pytest_cache/
+.cache/
+coverage/
+htmlcov/
+.dmypy.json
+
+# --- FastAPI / Uvicorn ---
+# compiled runtime cache
+*.pid
+
+# --- Supabase / local config ---
+# Environment secrets (DO NOT COMMIT)
+.env.local
+.env.production
+.env.development
+.supabase/
+.supabase/functions/.env
+supabase/.temp/
+supabase/.branches/
+
+# --- IDEs & OS junk ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+
+# --- Node / Frontend (if you have scripts or Supabase Edge Functions) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Docker ---
+*.pid
+*.seed
+docker-compose.override.yml
+*.env.docker
+
+# --- Misc ---
+*.pem
+*.crt
+*.key
+*.lock
+__snapshot__/
