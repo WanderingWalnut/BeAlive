@@ -2,6 +2,7 @@ import { Update } from '../types/update';
 
 export interface SocialPost {
   id: string;
+  challengeId: number; // Added to track the challenge for commitments
   username: string;
   handle: string;
   timestamp: string;

@@ -74,3 +74,18 @@ export type ChallengeOut = {
   created_at: string;
 };
 
+export type CommitmentSide = 'for' | 'against';
+
+export type CommitmentRequest = {
+  direction: CommitmentSide;
+  idempotency_key?: string | null;
+};
+
+export type CommitmentOut = {
+  id: number;
+  user_id: string;
+  challenge_id: number;
+  side: CommitmentSide;
+  created_at: string;
+};
+

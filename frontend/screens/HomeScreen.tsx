@@ -20,7 +20,10 @@ import FloatingButton from "../components/FloatingButton";
 import { useCommitments } from "../contexts/CommitmentsContext";
 import { supabase } from "../lib/supabase";
 import { getFeed, getChallenge } from "../lib/api";
+import { createCommitment, getMyCommitment } from "../lib/api/commitments";
 import type { PostWithCounts, ChallengeOut } from "../lib/types";
+
+const FEED_CACHE_KEY = "@feed_cache";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
@@ -109,8 +112,26 @@ export default function HomeScreen({ navigation, route }: Props) {
       // Convert storage path to public URL if needed
       const imageUrl = getImageUrl(post.media_url);
 
+      // Check if user has already committed to this challenge
+      let userCommitment: { choice: "yes" | "no"; locked: boolean } | undefined;
+      try {
+        const existingCommitment = await getMyCommitment(
+          accessToken,
+          challenge.id
+        );
+        if (existingCommitment) {
+          userCommitment = {
+            choice: existingCommitment.side === "for" ? "yes" : "no",
+            locked: true,
+          };
+        }
+      } catch (err) {
+        console.error("Error fetching user commitment:", err);
+      }
+
       return {
         id: post.id.toString(),
+        challengeId: challenge.id,
         username,
         handle,
   timestamp: post.created_at,
@@ -127,6 +148,7 @@ export default function HomeScreen({ navigation, route }: Props) {
         expiry:
           challenge.ends_at ||
           new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        userCommitment,
         updates: [],
       };
     },
@@ -134,60 +156,93 @@ export default function HomeScreen({ navigation, route }: Props) {
   );
 
   // Fetch posts from backend API
-  const fetchPosts = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const fetchPosts = useCallback(
+    async (forceRefresh = false) => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      // Get the current session token
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        console.log("No session token, user might not be logged in");
-        setPosts([]);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch feed from backend
-      const feedResponse = await getFeed(session.access_token);
-      console.log("Fetched feed:", feedResponse);
-
-      // For each post, fetch the challenge details and map to SocialPost
-      const socialPosts: SocialPost[] = [];
-      for (const post of feedResponse.items) {
-        try {
-          const challenge = await getChallenge(
-            session.access_token,
-            post.challenge_id
-          );
-          const socialPost = await mapPostToSocialPost(
-            post,
-            challenge,
-            session.access_token
-          );
-          socialPosts.push(socialPost);
-        } catch (err) {
-          console.error(`Error processing post ${post.id}:`, err);
-          // Skip this post if we can't fetch challenge details
+        // Get the current session token
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          console.log("No session token, user might not be logged in");
+          setPosts([]);
+          setLoading(false);
+          return;
         }
-      }
 
-      setPosts(socialPosts);
-    } catch (err) {
-      console.error("Error fetching posts:", err);
-      setError("Failed to load posts. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [mapPostToSocialPost]);
+        // Load from cache first if not forcing refresh
+        if (!forceRefresh) {
+          try {
+            const cached = await AsyncStorage.getItem(FEED_CACHE_KEY);
+            if (cached) {
+              const cachedPosts = JSON.parse(cached);
+              setPosts(cachedPosts);
+              setLoading(false);
+            }
+          } catch (err) {
+            console.error("Error loading cached feed:", err);
+          }
+        }
+
+        // Fetch feed from backend
+        const feedResponse = await getFeed(session.access_token);
+        console.log("Fetched feed:", feedResponse);
+
+        // For each post, fetch the challenge details and map to SocialPost
+        const socialPosts: SocialPost[] = [];
+        for (const post of feedResponse.items) {
+          try {
+            const challenge = await getChallenge(
+              session.access_token,
+              post.challenge_id
+            );
+            const socialPost = await mapPostToSocialPost(
+              post,
+              challenge,
+              session.access_token
+            );
+            socialPosts.push(socialPost);
+          } catch (err) {
+            console.error(`Error processing post ${post.id}:`, err);
+            // Skip this post if we can't fetch challenge details
+          }
+        }
+
+        // Only update if data has changed
+        const currentData = JSON.stringify(posts);
+        const newData = JSON.stringify(socialPosts);
+
+        if (currentData !== newData) {
+          setPosts(socialPosts);
+
+          // Save to cache
+          try {
+            await AsyncStorage.setItem(
+              FEED_CACHE_KEY,
+              JSON.stringify(socialPosts)
+            );
+          } catch (err) {
+            console.error("Error saving feed to cache:", err);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching posts:", err);
+        setError("Failed to load posts. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [mapPostToSocialPost, posts]
+  );
 
   // When Home screen receives focus, refresh posts from API
   const applyRouteParams = useCallback(async () => {
     try {
-      // Refresh the feed from the API
-      await fetchPosts();
+      // Refresh the feed from the API (force refresh)
+      await fetchPosts(true);
 
       // Handle route params for backwards compatibility
       const params = route.params || {};
@@ -217,7 +272,8 @@ export default function HomeScreen({ navigation, route }: Props) {
     try {
       await AsyncStorage.removeItem("userPosts");
       await AsyncStorage.removeItem("userChallenges");
-      await fetchPosts();
+      await AsyncStorage.removeItem(FEED_CACHE_KEY);
+      await fetchPosts(true);
       Alert.alert(
         "Storage Reset",
         "Cleared local cache and refreshed from server."
@@ -234,8 +290,8 @@ export default function HomeScreen({ navigation, route }: Props) {
 
   // Load posts on mount
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    fetchPosts(false); // Load from cache first
+  }, []);
 
   // Refresh posts when screen comes into focus
   useEffect(() => {
@@ -245,15 +301,15 @@ export default function HomeScreen({ navigation, route }: Props) {
     return unsubscribe;
   }, [navigation, applyRouteParams]);
 
-  const handleCommit = (postId: string, choice: "yes" | "no") => {
+  const handleCommit = async (postId: string, choice: "yes" | "no") => {
     const post = posts.find((p) => p.id === postId);
 
     if (!post || !post.stake) {
       return;
     }
 
-    // Check if user already has a commitment on this post
-    if (hasCommitment(postId)) {
+    // Check if user already has a commitment on this post (from UI state or DB)
+    if (post.userCommitment?.locked || hasCommitment(postId)) {
       Alert.alert(
         "Already Committed",
         "You have already committed to this challenge."
@@ -276,6 +332,29 @@ export default function HomeScreen({ navigation, route }: Props) {
           style: "default",
           onPress: async () => {
             try {
+              // Get the current session token
+              const {
+                data: { session },
+              } = await supabase.auth.getSession();
+
+              if (!session?.access_token) {
+                Alert.alert("Error", "You must be logged in to commit.");
+                return;
+              }
+
+              // Map 'yes'/'no' to 'for'/'against' for the API
+              const direction = choice === "yes" ? "for" : "against";
+
+              // Call backend API to save commitment
+              const commitment = await createCommitment(
+                session.access_token,
+                post.challengeId,
+                direction as "for" | "against",
+                `${postId}-${Date.now()}` // idempotency key
+              );
+
+              console.log("Commitment created:", commitment);
+
               // Optimistically update UI
               const updatedPosts = posts.map((p) => {
                 if (p.id === postId) {
@@ -308,7 +387,7 @@ export default function HomeScreen({ navigation, route }: Props) {
 
               setPosts(updatedPosts);
 
-              // Add to Commits (context)
+              // Add to Commits (context) for local state
               const updatedPoolYes =
                 choice === "yes"
                   ? (post.poolYes || 0) + post.stake
@@ -326,7 +405,7 @@ export default function HomeScreen({ navigation, route }: Props) {
                   : post.stake;
 
               addCommitment({
-                id: `commitment-${postId}-${Date.now()}`,
+                id: commitment.id.toString(),
                 postId: postId,
                 challengeTitle: post.title || post.caption || '',
                 creator: {
@@ -355,19 +434,22 @@ export default function HomeScreen({ navigation, route }: Props) {
                 updates: [],
               });
 
-              // TODO: Call backend API to save commitment
-
               // Show success message
               Alert.alert(
                 "Commitment Made!",
-                `Your commitment has been added to "Commits". You can view it in the Commits tab.`,
+                `Your commitment has been saved to the database and added to "Commits".`,
                 [{ text: "OK" }]
               );
+
+              // Refresh the feed to get updated counts (force refresh)
+              await fetchPosts(true);
             } catch (err) {
               console.error("Error saving commitment:", err);
               Alert.alert(
                 "Error",
-                "Failed to save your commitment. Please try again."
+                `Failed to save your commitment: ${
+                  err instanceof Error ? err.message : "Unknown error"
+                }. Please try again.`
               );
             }
           },
@@ -395,14 +477,6 @@ export default function HomeScreen({ navigation, route }: Props) {
         },
       },
     ]);
-  };
-
-  const handleTabPress = (key: string) => {
-    if (key === "commitments") {
-      navigation.replace("Commitments");
-    } else if (key === "settings") {
-      navigation.replace("Profile");
-    }
   };
 
   if (!user) {
@@ -444,7 +518,21 @@ export default function HomeScreen({ navigation, route }: Props) {
                 <ActivityIndicator size="large" color="#6B8AFF" />
                 <Text style={styles.loadingText}>Loading feed...</Text>
               </View>
+<<<<<<< HEAD
             ) : (error || posts.length === 0) ? (
+=======
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity
+                  style={styles.button}
+                  onPress={() => fetchPosts(true)}
+                >
+                  <Text style={styles.buttonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : posts.length === 0 ? (
+>>>>>>> 51ae048d452cd28115d6959c70705d9bdcfb7070
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyTitle}>Stand by</Text>
                 <Text style={styles.emptyText}>

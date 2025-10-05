@@ -42,16 +42,15 @@ class CommitmentService:
             "side": side.value,
         }
         try:
-            resp = self.client.table("commitments").insert(payload).select("*").limit(1).execute()
-            row = ((resp.data or []) or [None])[0]
-            if not row:
-                # In case of race, fetch again
-                again = self.get_my(user_id, challenge_id)
-                if again:
-                    return again
+            # Insert and then fetch - some supabase-py versions don't support chaining select after insert
+            resp = self.client.table("commitments").insert(payload).execute()
+            
+            # Fetch the newly created commitment
+            created = self.get_my(user_id, challenge_id)
+            if not created:
                 raise RuntimeError("Failed to create commitment")
-            return TypeAdapter(CommitmentOut).validate_python(row)
-        except Exception:
+            return created
+        except Exception as e:
             # Handle unique violation race: return existing
             again = self.get_my(user_id, challenge_id)
             if again:
@@ -64,6 +63,19 @@ class CommitmentService:
             self.client.table("commitments")
             .select("*")
             .eq("challenge_id", challenge_id)
+            .order("created_at", desc=True)
+            .limit(max(1, min(limit, 100)))
+            .execute()
+        )
+        rows = resp.data or []
+        return TypeAdapter(List[CommitmentOut]).validate_python(rows)
+    
+    def list_my_commitments(self, user_id: UUID, limit: int = 100) -> List[CommitmentOut]:
+        """List all commitments for a specific user."""
+        resp = (
+            self.client.table("commitments")
+            .select("*")
+            .eq("user_id", str(user_id))
             .order("created_at", desc=True)
             .limit(max(1, min(limit, 100)))
             .execute()

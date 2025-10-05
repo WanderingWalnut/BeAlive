@@ -4,7 +4,8 @@ Commitments endpoints.
 Includes:
 - POST /challenges/{challenge_id}/commitments → create (idempotent)
 - GET  /challenges/{challenge_id}/commitments/me → my commitment
-- GET  /challenges/{challenge_id}/commitments → list
+- GET  /challenges/{challenge_id}/commitments → list for challenge
+- GET  /commitments/me → list all my commitments
 """
 
 from __future__ import annotations
@@ -75,4 +76,15 @@ async def list_commitments(
 ):
     svc = CommitmentService(token)
     return svc.list_for_challenge(challenge_id=challenge_id, limit=limit)
+
+
+@router.get("/commitments/me", response_model=List[CommitmentOut])
+async def list_my_commitments(
+    limit: int = Query(default=100, ge=1, le=200),
+    user_id: UUID = Depends(_current_user_id),
+    token: str = Depends(_token),
+):
+    """Get all commitments for the current user."""
+    svc = CommitmentService(token)
+    return svc.list_my_commitments(user_id=user_id, limit=limit)
 
