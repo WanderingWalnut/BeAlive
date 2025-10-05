@@ -334,20 +334,30 @@ export default function HomeScreen({ navigation, route }: Props) {
             >
               <Text style={styles.resetButtonText}>Reset Storage</Text>
             </TouchableOpacity>
-            <FlatList
-            data={posts}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <SocialPostComponent
-                {...item}
-                onUpvote={() => {}}
-                onDownvote={() => {}}
-                onCommit={(choice) => handleCommit(item.id, choice)}
+            {posts.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyTitle}>Stand by</Text>
+                <Text style={styles.emptyText}>No posts yet — create a challenge to get started.</Text>
+                <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate('ChallengeCreation' as any)}>
+                  <Text style={styles.emptyButtonText}>Create Challenge</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <FlatList
+                data={posts}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <SocialPostComponent
+                    {...item}
+                    onUpvote={() => {}}
+                    onDownvote={() => {}}
+                    onCommit={(choice) => handleCommit(item.id, choice)}
+                  />
+                )}
+                contentContainerStyle={styles.feedContainer}
+                showsVerticalScrollIndicator={false}
               />
             )}
-            contentContainerStyle={styles.feedContainer}
-            showsVerticalScrollIndicator={false}
-          />
           </>
         )}
 
@@ -398,10 +408,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 32,
   },
+  emptyTitle: {
+    color: '#1A1D2E',
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
   emptyText: {
     color: '#9CA3AF',
-    fontSize: 16,
+    fontSize: 15,
     textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  emptyButton: {
+    backgroundColor: '#6B8AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  emptyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
   errorContainer: {
     flex: 1,

@@ -93,11 +93,14 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
       if (activeMode === 'new') {
         // Create a new challenge
         const challengeId = Date.now().toString();
+        // Parse expiry values explicitly so 0 is allowed (don't treat 0 as falsy -> 7)
+        const parsedDays = parseInt(expiryDays, 10);
+        const parsedHours = parseInt(expiryHours, 10);
         const newChallenge = {
           title: title.trim(),
           stake: 5, // Fixed commit amount
-          expiryDays: parseInt(expiryDays) || 7,
-          expiryHours: parseInt(expiryHours) || 0,
+          expiryDays: isNaN(parsedDays) ? 7 : parsedDays,
+          expiryHours: isNaN(parsedHours) ? 0 : parsedHours,
           image: selectedImage,
         };
 

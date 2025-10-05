@@ -98,11 +98,6 @@ export default function SocialPost({
                 <Text style={styles.expiryText}>⏱ {formatExpiry(expiry)}</Text>
               </View>
             )}
-            {stake !== undefined && (
-              <View style={styles.expiryRow}>
-                <Text style={styles.expiryText}>Commit: $5</Text>
-              </View>
-            )}
           </View>
         </View>
       </View>
@@ -306,6 +301,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginRight: 24,
+    paddingHorizontal: 8, // avoid text clipping on small buttons
+    paddingVertical: 6,
   },
   interactionIcon: {
     margin: 0,
@@ -320,6 +317,8 @@ const styles = StyleSheet.create({
   selectedItem: {
     backgroundColor: 'rgba(107, 138, 255, 0.1)',
     borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
   selectedText: {
     color: '#6B8AFF',

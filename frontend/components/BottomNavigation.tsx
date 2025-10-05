@@ -40,12 +40,16 @@ export default function BottomNavigation({ currentIndex, onTabPress }: BottomNav
 
 const styles = StyleSheet.create({
   bottomNav: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E0E5ED',
-    height: 60,
-    paddingBottom: 8,
+    height: 64,
+    paddingBottom: 12,
     paddingTop: 8,
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -56,7 +60,7 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 8,
   },
   navItem: {
     flex: 1,
