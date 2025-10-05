@@ -113,8 +113,9 @@ export default function HomeScreen({ navigation, route }: Props) {
         id: post.id.toString(),
         username,
         handle,
-        timestamp: new Date(post.created_at).toLocaleDateString(),
-        content: challenge.title,
+  timestamp: post.created_at,
+        title: challenge.title,
+        caption: (challenge as any).description || challenge.title,
         image: imageUrl,
         upvotes: 0, // Not implemented yet
         downvotes: 0, // Not implemented yet
@@ -327,7 +328,7 @@ export default function HomeScreen({ navigation, route }: Props) {
               addCommitment({
                 id: `commitment-${postId}-${Date.now()}`,
                 postId: postId,
-                challengeTitle: post.content,
+                challengeTitle: post.title || post.caption || '',
                 creator: {
                   username: post.username,
                   handle: post.handle,
@@ -375,13 +376,7 @@ export default function HomeScreen({ navigation, route }: Props) {
     );
   };
 
-  const handleTabPress = (key: string) => {
-    if (key === "commitments") {
-      navigation.replace("Commitments");
-    } else if (key === "settings") {
-      navigation.replace("Profile");
-    }
-  };
+  
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -449,14 +444,7 @@ export default function HomeScreen({ navigation, route }: Props) {
                 <ActivityIndicator size="large" color="#6B8AFF" />
                 <Text style={styles.loadingText}>Loading feed...</Text>
               </View>
-            ) : error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity style={styles.button} onPress={fetchPosts}>
-                  <Text style={styles.buttonText}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            ) : posts.length === 0 ? (
+            ) : (error || posts.length === 0) ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyTitle}>Stand by</Text>
                 <Text style={styles.emptyText}>
@@ -464,9 +452,7 @@ export default function HomeScreen({ navigation, route }: Props) {
                 </Text>
                 <TouchableOpacity
                   style={styles.emptyButton}
-                  onPress={() =>
-                    navigation.navigate("ChallengeCreation" as any)
-                  }
+                  onPress={() => navigation.navigate("ChallengeCreation" as any)}
                 >
                   <Text style={styles.emptyButtonText}>Create Challenge</Text>
                 </TouchableOpacity>

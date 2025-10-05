@@ -72,6 +72,7 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [caption, setCaption] = useState("");
   const commit = "5"; // Fixed commit amount
   const [expiryDays, setExpiryDays] = useState("7");
   const [expiryHours, setExpiryHours] = useState("0");
@@ -133,7 +134,7 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
             amount_cents: 500, // $5 = 500 cents
             ends_at: endsAt,
           },
-          caption: title.trim(),
+          caption: caption.trim() || title.trim(),
         });
 
         console.log("Created post:", post);
@@ -387,6 +388,19 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
                     maxLength={100}
                   />
                   <Text style={styles.characterCount}>{title.length}/100</Text>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Caption (optional)</Text>
+                  <TextInput
+                    value={caption}
+                    onChangeText={setCaption}
+                    placeholder="Short caption or description shown in the feed"
+                    placeholderTextColor="#6b7280"
+                    style={styles.input}
+                    maxLength={200}
+                  />
+                  <Text style={styles.characterCount}>{caption.length}/200</Text>
                 </View>
 
                 {/* Description input is only needed when posting updates; hide for new challenge */}

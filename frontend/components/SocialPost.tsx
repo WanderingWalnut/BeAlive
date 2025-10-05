@@ -20,7 +20,10 @@ interface SocialPostProps {
   username: string;
   handle: string;
   timestamp: string;
-  content: string;
+  // New split: title and caption. Keep `content` as fallback for older posts.
+  title?: string;
+  caption?: string;
+  content?: string;
   image?: string;
   verified?: boolean;
   upvotes: number;
@@ -46,6 +49,8 @@ export default function SocialPost({
   username,
   handle,
   timestamp,
+  title,
+  caption,
   content,
   image,
   verified = false,
@@ -63,6 +68,8 @@ export default function SocialPost({
   onCommit,
   updates = [],
 }: SocialPostProps) {
+  const displayTitle = title || content || '';
+  const displayCaption = caption || (title ? '' : content) || '';
   // Format expiry date (show days and hours)
   const formatExpiry = (expiryDate: string | undefined) => {
     if (!expiryDate) return '';
@@ -103,10 +110,11 @@ export default function SocialPost({
             style={styles.avatar}
           />
           <View style={styles.userDetails}>
+            {/* Title goes at the top */}
+            <Text style={styles.postTitle} numberOfLines={2}>{displayTitle}</Text>
             <View style={styles.nameRow}>
-              <Text style={styles.username}>{username}</Text>
-              {verified && <Text style={styles.verified}>✓</Text>}
               <Text style={styles.handle}>{handle}</Text>
+              {verified && <Text style={styles.verified}>✓</Text>}
               <Text style={styles.timestamp}>• {formatTimestamp(timestamp)}</Text>
             </View>
             {expiry && (
@@ -120,7 +128,9 @@ export default function SocialPost({
 
       {/* Content */}
       <View style={styles.content}>
-        <Text style={styles.contentText}>{content}</Text>
+        {displayCaption ? (
+          <Text style={styles.contentText}>{displayCaption}</Text>
+        ) : null}
         {image && (
             <Image source={{ uri: image }} style={styles.contentImage} />
           )}
@@ -256,6 +266,18 @@ const styles = StyleSheet.create({
     borderColor: '#E0E5ED',
   },
   userDetails: {
+    flex: 1,
+  },
+  postTitle: {
+    color: '#1A1D2E',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  headerCaption: {
+    color: '#6B7280',
+    fontSize: 13,
+    marginRight: 8,
     flex: 1,
   },
   nameRow: {

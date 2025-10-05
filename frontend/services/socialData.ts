@@ -5,7 +5,9 @@ export interface SocialPost {
   username: string;
   handle: string;
   timestamp: string;
-  content: string;
+  // content historically held the challenge title; split into title + caption
+  title?: string;
+  caption?: string;
   image?: string;
   verified?: boolean;
   upvotes: number;
