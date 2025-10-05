@@ -16,7 +16,10 @@ interface SocialPostProps {
   avatar?: string | null;
   userInitial?: string;
   timestamp: string;
-  content: string;
+  // New split: title and caption. Keep `content` as fallback for older posts.
+  title?: string;
+  caption?: string;
+  content?: string;
   image?: string;
   verified?: boolean;
   upvotes: number;
@@ -44,6 +47,8 @@ export default function SocialPost({
   avatar,
   userInitial = "U",
   timestamp,
+  title,
+  caption,
   content,
   image,
   verified = false,
@@ -61,6 +66,8 @@ export default function SocialPost({
   onCommit,
   updates = [],
 }: SocialPostProps) {
+  const displayTitle = title || content || "";
+  const displayCaption = caption || (title ? "" : content) || "";
   // Format expiry date (show days and hours)
   const formatExpiry = (expiryDate: string | undefined) => {
     if (!expiryDate) return "";
@@ -85,15 +92,8 @@ export default function SocialPost({
     if (isNaN(Date.parse(ts))) return ts;
     try {
       const d = new Date(ts);
-      const date = d.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      });
-      const time = d.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      });
-      return `${date} • ${time}`;
+      // Return date only (e.g. "Oct 5") — no time displayed per request
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     } catch (e) {
       return ts;
     }
@@ -101,37 +101,38 @@ export default function SocialPost({
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header: left = avatar + title/handle, right = timestamp + expiry */}
       <View style={styles.header}>
-        <View style={styles.userInfo}>
-          {avatar ? (
-            <Image source={{ uri: avatar }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Text style={styles.avatarInitial}>{userInitial}</Text>
-            </View>
-          )}
+        <View style={styles.leftRow}>
+          <Image
+            source={{
+              uri: `https://i.pravatar.cc/40?img=${Math.floor(
+                Math.random() * 70
+              )}`,
+            }}
+            style={styles.avatar}
+          />
           <View style={styles.userDetails}>
-            <View style={styles.nameRow}>
-              <Text style={styles.username}>{username}</Text>
-              {verified && <Text style={styles.verified}>✓</Text>}
-              <Text style={styles.handle}>{handle}</Text>
-              <Text style={styles.timestamp}>
-                • {formatTimestamp(timestamp)}
-              </Text>
-            </View>
-            {expiry && (
-              <View style={styles.expiryRow}>
-                <Text style={styles.expiryText}>⏱ {formatExpiry(expiry)}</Text>
-              </View>
-            )}
+            {/* Title goes at the top */}
+            <Text style={styles.postTitle} accessibilityRole="header">
+              {displayTitle}
+            </Text>
           </View>
+        </View>
+
+        <View style={styles.rightInfo}>
+          <Text style={styles.timestamp}>{formatTimestamp(timestamp)}</Text>
+          {expiry && (
+            <Text style={styles.expiryText}>{formatExpiry(expiry)}</Text>
+          )}
         </View>
       </View>
 
       {/* Content */}
       <View style={styles.content}>
-        <Text style={styles.contentText}>{content}</Text>
+        {displayCaption ? (
+          <Text style={styles.contentText}>{displayCaption}</Text>
+        ) : null}
         {image && <Image source={{ uri: image }} style={styles.contentImage} />}
       </View>
 
@@ -158,94 +159,98 @@ export default function SocialPost({
 
       {/* Interaction Bar */}
       <View style={styles.interactions}>
-        {stake && onCommit ? (
-          // Commit mode - simplified Yes/No buttons (fixed commit amount displayed elsewhere)
-          <>
-            <TouchableOpacity
-              style={[
-                styles.interactionItem,
-                userCommitment?.choice === "yes" && styles.selectedItem,
-                userCommitment?.locked && styles.lockedItem,
-              ]}
-              onPress={() => !userCommitment?.locked && onCommit("yes")}
-              disabled={userCommitment?.locked}
-            >
-              <IconButton
-                icon="arrow-up"
-                size={20}
-                iconColor={
-                  userCommitment?.choice === "yes" ? "#6B8AFF" : "#9CA3AF"
-                }
-                style={styles.interactionIcon}
-              />
-              <Text
+        <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
+          {stake && onCommit ? (
+            <>
+              <TouchableOpacity
                 style={[
-                  styles.interactionText,
-                  userCommitment?.choice === "yes" && styles.selectedText,
+                  styles.interactionItem,
+                  userCommitment?.choice === "yes" && styles.selectedItem,
+                  userCommitment?.locked && styles.lockedItem,
                 ]}
+                onPress={() => !userCommitment?.locked && onCommit("yes")}
+                disabled={userCommitment?.locked}
               >
-                YES
-              </Text>
-            </TouchableOpacity>
+                <IconButton
+                  icon="arrow-up"
+                  size={20}
+                  iconColor={
+                    userCommitment?.choice === "yes" ? "#6B8AFF" : "#9CA3AF"
+                  }
+                  style={styles.interactionIcon}
+                />
+                <Text
+                  style={[
+                    styles.interactionText,
+                    userCommitment?.choice === "yes" && styles.selectedText,
+                  ]}
+                >
+                  YES
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.interactionItem,
-                userCommitment?.choice === "no" && styles.selectedItem,
-                userCommitment?.locked && styles.lockedItem,
-              ]}
-              onPress={() => !userCommitment?.locked && onCommit("no")}
-              disabled={userCommitment?.locked}
-            >
-              <IconButton
-                icon="arrow-down"
-                size={20}
-                iconColor={
-                  userCommitment?.choice === "no" ? "#6B8AFF" : "#9CA3AF"
-                }
-                style={styles.interactionIcon}
-              />
-              <Text
+              <TouchableOpacity
                 style={[
-                  styles.interactionText,
-                  userCommitment?.choice === "no" && styles.selectedText,
+                  styles.interactionItem,
+                  userCommitment?.choice === "no" && styles.selectedItem,
+                  userCommitment?.locked && styles.lockedItem,
                 ]}
+                onPress={() => !userCommitment?.locked && onCommit("no")}
+                disabled={userCommitment?.locked}
               >
-                NO
-              </Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          // Regular social media mode - upvote/downvote
-          <>
-            <TouchableOpacity style={styles.interactionItem} onPress={onUpvote}>
-              <IconButton
-                icon="arrow-up"
-                size={20}
-                iconColor="#9ca3af"
-                style={styles.interactionIcon}
-              />
-              <Text style={styles.interactionText}>
-                {upvotes.toLocaleString()}
-              </Text>
-            </TouchableOpacity>
+                <IconButton
+                  icon="arrow-down"
+                  size={20}
+                  iconColor={
+                    userCommitment?.choice === "no" ? "#6B8AFF" : "#9CA3AF"
+                  }
+                  style={styles.interactionIcon}
+                />
+                <Text
+                  style={[
+                    styles.interactionText,
+                    userCommitment?.choice === "no" && styles.selectedText,
+                  ]}
+                >
+                  NO
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={styles.interactionItem}
+                onPress={onUpvote}
+              >
+                <IconButton
+                  icon="arrow-up"
+                  size={20}
+                  iconColor="#9ca3af"
+                  style={styles.interactionIcon}
+                />
+                <Text style={styles.interactionText}>
+                  {upvotes.toLocaleString()}
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.interactionItem}
-              onPress={onDownvote}
-            >
-              <IconButton
-                icon="arrow-down"
-                size={20}
-                iconColor="#9ca3af"
-                style={styles.interactionIcon}
-              />
-              <Text style={styles.interactionText}>
-                {downvotes.toLocaleString()}
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
+              <TouchableOpacity
+                style={styles.interactionItem}
+                onPress={onDownvote}
+              >
+                <IconButton
+                  icon="arrow-down"
+                  size={20}
+                  iconColor="#9ca3af"
+                  style={styles.interactionIcon}
+                />
+                <Text style={styles.interactionText}>
+                  {downvotes.toLocaleString()}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+        <Text style={styles.usernameRight}>@{username}</Text>
       </View>
     </View>
   );
@@ -270,6 +275,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  leftRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  userInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
   },
   userInfo: {
     flexDirection: "row",
@@ -297,10 +312,28 @@ const styles = StyleSheet.create({
   userDetails: {
     flex: 1,
   },
+  postTitle: {
+    color: "#1A1D2E",
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  headerCaption: {
+    color: "#6B7280",
+    fontSize: 13,
+    marginRight: 8,
+    flex: 1,
+  },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
+  },
+  rightInfo: {
+    alignItems: "flex-end",
+    justifyContent: "flex-start",
+    alignSelf: "flex-start",
+    marginLeft: 12,
   },
   username: {
     color: "#1A1D2E",
@@ -315,20 +348,38 @@ const styles = StyleSheet.create({
   },
   handle: {
     color: "#9CA3AF",
-    fontSize: 14,
-    marginRight: 4,
+    fontSize: 13,
+    marginRight: 6,
   },
   timestamp: {
     color: "#9CA3AF",
-    fontSize: 14,
+    fontSize: 12,
   },
   expiryRow: {
     marginTop: 4,
   },
   expiryText: {
     color: "#6B8AFF",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
+  },
+  usernameRight: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    marginTop: 4,
+    maxWidth: 120,
+    textAlign: "right",
+  },
+  handleRowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginTop: 4,
+  },
+  handleRight: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    textAlign: "right",
   },
   content: {
     paddingHorizontal: 16,

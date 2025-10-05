@@ -8,7 +8,9 @@ export interface SocialPost {
   avatar?: string | null; // Avatar URL or null
   userInitial?: string; // First letter of username/full_name for fallback
   timestamp: string;
-  content: string;
+  // content historically held the challenge title; split into title + caption
+  title?: string;
+  caption?: string;
   image?: string;
   verified?: boolean;
   upvotes: number;

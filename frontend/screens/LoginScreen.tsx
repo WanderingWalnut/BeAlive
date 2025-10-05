@@ -124,13 +124,7 @@ export default function LoginScreen({ navigation }: Props) {
             <Animated.View style={[styles.blobA, blob1Style]} />
             <Animated.View style={[styles.blobB, blob2Style]} />
 
-            {/* DEV: Skip button */}
-            <TouchableOpacity 
-              style={styles.devSkip} 
-              onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Home' }] })}
-            >
-              <Text style={styles.devSkipText}>DEV: Skip to Home</Text>
-            </TouchableOpacity>
+            {/* (DEV skip removed) */}
 
             {/* Title section */}
             <View style={styles.header}>
@@ -285,22 +279,7 @@ const styles = StyleSheet.create({
   },
   link: { textDecorationLine: "underline", color: COLORS.subtext },
 
-  // DEV skip button
-  devSkip: {
-    position: "absolute",
-    top: 20,
-    right: 20,
-    backgroundColor: "#10b981",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    zIndex: 10,
-  },
-  devSkipText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
-  },
+  // (Removed) dev skip styles
 
   // bubbles
   blobA: {

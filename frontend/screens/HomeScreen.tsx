@@ -198,10 +198,10 @@ export default function HomeScreen({ navigation, route }: Props) {
         challengeId: challenge.id,
         username,
         handle,
-        avatar: avatarUrl,
-        userInitial,
-        timestamp: new Date(post.created_at).toLocaleDateString(),
-        content: challenge.title,
+        timestamp: post.created_at,
+        title: challenge.title,
+        // Prefer the explicit post caption (user input). Fall back to challenge description, then title.
+        caption: post.caption || (challenge as any).description || "",
         image: imageUrl,
         upvotes: 0, // Not implemented yet
         downvotes: 0, // Not implemented yet
@@ -332,26 +332,7 @@ export default function HomeScreen({ navigation, route }: Props) {
     }
   }, [navigation, route.params, fetchPosts]);
 
-  // Dev helper: reset AsyncStorage keys and refresh from API
-  const handleResetStorage = async () => {
-    try {
-      await AsyncStorage.removeItem("userPosts");
-      await AsyncStorage.removeItem("userChallenges");
-      await AsyncStorage.removeItem(FEED_CACHE_KEY);
-      await fetchPosts(true);
-      Alert.alert(
-        "Storage Reset",
-        "Cleared local cache and refreshed from server."
-      );
-      console.log("AsyncStorage cleared and posts refreshed from API");
-    } catch (err) {
-      console.error("Error clearing AsyncStorage:", err);
-      Alert.alert(
-        "Error",
-        "Failed to clear storage. Check console for details."
-      );
-    }
-  };
+  // (Removed) Dev helper to reset AsyncStorage - not available in production build
 
   // Load posts on mount
   useEffect(() => {
@@ -472,7 +453,7 @@ export default function HomeScreen({ navigation, route }: Props) {
               addCommitment({
                 id: commitment.id.toString(),
                 postId: postId,
-                challengeTitle: post.content,
+                challengeTitle: post.title || post.caption || "",
                 creator: {
                   username: post.username,
                   handle: post.handle,
@@ -569,15 +550,9 @@ export default function HomeScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
-      {/* App Title + Reset on same row */}
+      {/* App Title */}
       <View style={[styles.appHeader, styles.headerRow]}>
         <Text style={styles.appTitle}>BeLive</Text>
-        <TouchableOpacity
-          style={styles.resetButton}
-          onPress={handleResetStorage}
-        >
-          <Text style={styles.resetButtonText}>Reset Storage</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Main Content */}
@@ -589,17 +564,7 @@ export default function HomeScreen({ navigation, route }: Props) {
                 <ActivityIndicator size="large" color="#6B8AFF" />
                 <Text style={styles.loadingText}>Loading feed...</Text>
               </View>
-            ) : error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity
-                  style={styles.button}
-                  onPress={() => fetchPosts(true)}
-                >
-                  <Text style={styles.buttonText}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            ) : posts.length === 0 ? (
+            ) : error || posts.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyTitle}>Stand by</Text>
                 <Text style={styles.emptyText}>
@@ -658,18 +623,7 @@ const styles = StyleSheet.create({
   feedContainer: {
     paddingBottom: 80,
   },
-  resetButton: {
-    backgroundColor: "#EFEFEF",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    alignSelf: "flex-end",
-    borderRadius: 6,
-    margin: 12,
-  },
-  resetButtonText: {
-    color: "#111827",
-    fontSize: 12,
-  },
+  // (Removed) reset button styles
   appHeader: {
     paddingHorizontal: 16,
     paddingTop: 12,
