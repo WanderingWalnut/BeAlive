@@ -340,6 +340,14 @@ export default function CommitmentsScreen({ navigation }: Props) {
     const hasExpired = timeInfo.text === "Expired";
     const userWon = hasExpired && item.outcome === item.userChoice;
 
+    // Calculate percentages based on participant counts, not money
+    const totalParticipants = item.participantsYes + item.participantsNo;
+    const supportingPercent =
+      totalParticipants > 0
+        ? Math.round((item.participantsYes / totalParticipants) * 100)
+        : 50;
+    const challengingPercent = 100 - supportingPercent;
+
     return (
       <TouchableOpacity
         style={styles.card}
@@ -416,7 +424,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
                 <View
                   style={[
                     styles.pulseBarFill,
-                    { width: `${stats.userSidePercent}%` },
+                    { width: `${supportingPercent}%` },
                   ]}
                 />
               </View>
@@ -426,8 +434,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
                     style={[styles.pulseDot, { backgroundColor: "#10b981" }]}
                   />
                   <Text style={styles.pulseLabelText}>
-                    Supporting: {item.participantsYes} ({stats.userSidePercent}
-                    %)
+                    Supporting: {item.participantsYes} ({supportingPercent}%)
                   </Text>
                 </View>
                 <View style={styles.pulseLabelItem}>
@@ -435,8 +442,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
                     style={[styles.pulseDot, { backgroundColor: "#f59e0b" }]}
                   />
                   <Text style={styles.pulseLabelText}>
-                    Challenging: {item.participantsNo} (
-                    {100 - stats.userSidePercent}%)
+                    Challenging: {item.participantsNo} ({challengingPercent}%)
                   </Text>
                 </View>
               </View>
