@@ -326,3 +326,78 @@ create policy "posts_owner_delete" on storage.objects for delete to authenticate
     bucket_id = 'posts'
     and owner = auth.uid()
 );
+-- ==========================================================
+-- 11) POSTS RPC: Atomic create with optional new challenge
+-- ==========================================================
+-- Guarantees: every post has a challenge via NOT NULL FK on posts.challenge_id
+-- and this RPC either uses an owned challenge or creates one, then inserts the post.
+create or replace function public.create_post_with_optional_challenge(
+        p_challenge_id bigint default null,
+        p_title text default null,
+        p_description text default null,
+        p_amount_cents integer default null,
+        p_starts_at timestamptz default null,
+        p_ends_at timestamptz default null,
+        p_caption text default null,
+        p_media_url text default null
+    ) returns public.posts_with_counts language plpgsql security invoker
+set search_path = public as $$
+declare v_challenge_id bigint;
+v_post_id bigint;
+v_row public.posts_with_counts %rowtype;
+begin if p_challenge_id is not null then v_challenge_id := p_challenge_id;
+-- Ensure caller owns the target challenge
+if not exists(
+    select 1
+    from public.challenges ch
+    where ch.id = v_challenge_id
+        and ch.owner_id = auth.uid()
+) then raise exception 'Not the owner of the target challenge' using errcode = '42501';
+end if;
+else -- Creating a new challenge requires title and amount_cents
+if p_title is null
+or p_amount_cents is null then raise exception 'Missing new challenge fields: title and amount_cents are required' using errcode = '22023';
+end if;
+insert into public.challenges(
+        owner_id,
+        title,
+        description,
+        amount_cents,
+        starts_at,
+        ends_at
+    )
+values (
+        auth.uid(),
+        p_title,
+        p_description,
+        p_amount_cents,
+        p_starts_at,
+        p_ends_at
+    )
+returning id into v_challenge_id;
+end if;
+-- Create the post for the (existing or newly created) challenge
+insert into public.posts(challenge_id, author_id, caption, media_url)
+values (
+        v_challenge_id,
+        auth.uid(),
+        p_caption,
+        p_media_url
+    )
+returning id into v_post_id;
+select p.* into v_row
+from public.posts_with_counts p
+where p.id = v_post_id;
+return v_row;
+end;
+$$;
+grant execute on function public.create_post_with_optional_challenge(
+        bigint,
+        text,
+        text,
+        integer,
+        timestamptz,
+        timestamptz,
+        text,
+        text
+    ) to authenticated;

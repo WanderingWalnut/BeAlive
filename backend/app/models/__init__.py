@@ -23,6 +23,8 @@ from .post import (
     PostWithCounts,
     FeedParams,
     FeedItem,
+    CreatePostRequest,
+    PostFull,
 )
 from .commitment import (
     CommitmentCreate,
@@ -61,6 +63,8 @@ __all__ = [
     "PostWithCounts",
     "FeedParams",
     "FeedItem",
+    "CreatePostRequest",
+    "PostFull",
     # commitment
     "CommitmentCreate",
     "CommitmentOut",
