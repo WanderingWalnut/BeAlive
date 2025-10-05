@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
+  Animated,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import BottomNavigation from '../components/BottomNavigation';
 import { useBets } from '../contexts/BetsContext';
-import FloatingButton from '../components/FloatingButton';
+import { IconButton } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface Commitment {
   id: string;
@@ -31,6 +33,7 @@ interface Commitment {
   participantsYes: number;
   participantsNo: number;
   expectedPayout: number;
+  image?: string;
   updates: Array<{
     id: string;
     content: string;
@@ -45,7 +48,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Commitments'>;
 
 export default function CommitmentsScreen({ navigation }: Props) {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [index, setIndex] = useState(1); // Start with commitments tab active
+  const [index, setIndex] = useState(1);
   const { bets } = useBets();
 
   const handleTabPress = (key: string) => {
@@ -56,109 +59,19 @@ export default function CommitmentsScreen({ navigation }: Props) {
     }
   };
 
-  // Use bets from context, or show mock data if no bets yet
-  const commitments: Commitment[] = bets.length > 0 ? bets : [
-    {
-      id: '1',
-      challengeTitle: 'Will I go to the gym 5 days this week?',
-      creator: { 
-        username: 'Alex Chen', 
-        handle: '@alexchen',
-        avatar: 'https://i.pravatar.cc/150?u=alexchen' 
-      },
-      expiry: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-      userChoice: 'yes',
-      stake: 10,
-      poolYes: 45,
-      poolNo: 25,
-      participantsYes: 3,
-      participantsNo: 2,
-      expectedPayout: 15,
-      updates: [
-        { 
-          id: 'u1', 
-          content: 'Day 1: Hit the gym!', 
-          timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() 
-        },
-        { 
-          id: 'u2', 
-          content: 'Day 2: Feeling good!', 
-          image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=200&h=150&fit=crop',
-          timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() 
-        },
-      ],
-      isExpired: false,
-    },
-    {
-      id: '2',
-      challengeTitle: 'Will I complete my coding bootcamp project by Friday?',
-      creator: { 
-        username: 'Sarah Kim', 
-        handle: '@sarahk',
-        avatar: 'https://i.pravatar.cc/150?u=sarahk' 
-      },
-      expiry: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-      userChoice: 'no',
-      stake: 15,
-      poolYes: 60,
-      poolNo: 30,
-      participantsYes: 4,
-      participantsNo: 2,
-      expectedPayout: 15,
-      updates: [
-        { 
-          id: 'u3', 
-          content: 'Project started!', 
-          timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() 
-        },
-      ],
-      isExpired: false,
-    },
-    {
-      id: '3',
-      challengeTitle: 'Will I read 50 pages of my book this week?',
-      creator: { 
-        username: 'Emma Davis', 
-        handle: '@emmad',
-        avatar: 'https://i.pravatar.cc/150?u=emmad' 
-      },
-      expiry: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // Expired
-      userChoice: 'yes',
-      stake: 12,
-      poolYes: 48,
-      poolNo: 24,
-      participantsYes: 4,
-      participantsNo: 2,
-      expectedPayout: 18,
-      updates: [
-        { 
-          id: 'u4', 
-          content: 'Finished chapter 1!', 
-          timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() 
-        },
-        { 
-          id: 'u5', 
-          content: 'Reached 50 pages!', 
-          timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() 
-        },
-      ],
-      isExpired: true,
-      outcome: 'yes',
-    },
-  ];
-
   const formatTimeRemaining = (expiry: string) => {
     const now = new Date();
     const expiryDate = new Date(expiry);
     const diffMs = expiryDate.getTime() - now.getTime();
 
-    if (diffMs <= 0) return 'Expired';
+    if (diffMs <= 0) return { text: 'Expired', color: '#ef4444' };
 
     const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
 
-    if (days > 0) return `${days}d ${hours}h left`;
-    return `${hours}h left`;
+    if (days > 7) return { text: `${days} days left`, color: '#10b981' };
+    if (days > 0) return { text: `${days}d ${hours}h left`, color: '#f59e0b' };
+    return { text: `${hours}h left`, color: '#ef4444' };
   };
 
   const toggleExpand = (id: string) => {
@@ -171,135 +84,279 @@ export default function CommitmentsScreen({ navigation }: Props) {
     setExpandedCards(newExpanded);
   };
 
-
-  const renderCommitmentCard = ({ item }: { item: Commitment }) => {
-    const isExpanded = expandedCards.has(item.id);
-    const timeRemaining = formatTimeRemaining(item.expiry);
+  const calculateStats = (item: Commitment) => {
     const totalPool = item.poolYes + item.poolNo;
     const userSidePool = item.userChoice === 'yes' ? item.poolYes : item.poolNo;
-    const userSideParticipants = item.userChoice === 'yes' ? item.participantsYes : item.participantsNo;
     const otherSidePool = item.userChoice === 'yes' ? item.poolNo : item.poolYes;
-    const otherSideParticipants = item.userChoice === 'yes' ? item.participantsNo : item.participantsYes;
-
     const userSidePercent = totalPool > 0 ? Math.round((userSidePool / totalPool) * 100) : 50;
-    const otherSidePercent = totalPool > 0 ? Math.round((otherSidePool / totalPool) * 100) : 50;
+    const potentialReturn = item.expectedPayout - item.stake;
+    const roi = item.stake > 0 ? Math.round((potentialReturn / item.stake) * 100) : 0;
+    
+    return { totalPool, userSidePool, otherSidePool, userSidePercent, potentialReturn, roi };
+  };
 
-    const expectedPayout = userSideParticipants > 0 ? (totalPool / userSideParticipants) : 0;
-    const hasExpired = timeRemaining === 'Expired';
-    const userWon = hasExpired && item.outcome === item.userChoice;
+  const renderSummaryCard = () => {
+    if (bets.length === 0) return null;
+
+    const totalInvested = bets.reduce((sum, bet) => sum + bet.stake, 0);
+    const totalPotentialReturn = bets.reduce((sum, bet) => sum + bet.expectedPayout, 0);
+    const activeBets = bets.filter(bet => !bet.isExpired).length;
 
     return (
-      <View style={styles.card}>
-        {/* Card Header */}
-        <View style={styles.cardHeader}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.challengeTitle}>{item.challengeTitle}</Text>
-            <Text style={styles.creatorText}>by {item.creator.username}</Text>
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>Portfolio Summary</Text>
+        <View style={styles.summaryStats}>
+          <View style={styles.summaryStatItem}>
+            <Text style={styles.summaryStatValue}>${totalInvested}</Text>
+            <Text style={styles.summaryStatLabel}>Total Invested</Text>
           </View>
-          <View style={styles.headerRight}>
-            <Text style={[
-              styles.timeRemaining,
-              hasExpired ? styles.expiredTime : styles.activeTime
-            ]}>
-              {timeRemaining}
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryStatItem}>
+            <Text style={[styles.summaryStatValue, { color: '#10b981' }]}>
+              ${totalPotentialReturn.toFixed(0)}
             </Text>
+            <Text style={styles.summaryStatLabel}>Potential Return</Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryStatItem}>
+            <Text style={styles.summaryStatValue}>{activeBets}</Text>
+            <Text style={styles.summaryStatLabel}>Active Bets</Text>
           </View>
         </View>
-
-        {/* Your Investment */}
-        <View style={styles.investmentSection}>
-          <View style={styles.investmentRow}>
-            <Text style={styles.investmentLabel}>Your Investment:</Text>
-            <View style={[
-              styles.choiceBadge,
-              item.userChoice === 'yes' ? styles.yesBadge : styles.noBadge
-            ]}>
-              <Text style={styles.choiceText}>
-                {item.userChoice === 'yes' ? 'YES' : 'NO'} (${item.stake})
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Pool Stats */}
-        <View style={styles.poolStats}>
-          <View style={styles.poolRow}>
-            <Text style={styles.poolLabel}>Total Pool:</Text>
-            <Text style={styles.poolValue}>${totalPool}</Text>
-          </View>
-          <View style={styles.poolRow}>
-            <Text style={styles.poolLabel}>Your Side ({item.userChoice.toUpperCase()}):</Text>
-            <Text style={styles.poolValue}>${userSidePool} ({userSidePercent}%)</Text>
-          </View>
-          <View style={styles.poolRow}>
-            <Text style={styles.poolLabel}>Other Side:</Text>
-            <Text style={styles.poolValue}>${otherSidePool} ({otherSidePercent}%)</Text>
-          </View>
-          {!hasExpired && (
-            <View style={styles.payoutRow}>
-              <Text style={styles.payoutLabel}>Expected Return:</Text>
-              <Text style={styles.payoutValue}>${expectedPayout.toFixed(2)}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Outcome (if expired) */}
-        {hasExpired && (
-          <View style={[
-            styles.outcomeSection,
-            userWon ? styles.outcomeWin : styles.outcomeLoss
-          ]}>
-            <Text style={styles.outcomeText}>
-              {userWon ? 'You Won!' : 'You Lost!'}
-            </Text>
-            {userWon && <Text style={styles.payoutReceived}>Received: ${expectedPayout.toFixed(2)}</Text>}
-          </View>
-        )}
-
-        {/* Expandable Details */}
-        <TouchableOpacity style={styles.expandButton} onPress={() => toggleExpand(item.id)}>
-          <Text style={styles.expandButtonText}>
-            {isExpanded ? 'Hide Details ▲' : 'Show Details ▼'}
-          </Text>
-        </TouchableOpacity>
-
-        {isExpanded && (
-          <View style={styles.expandedContent}>
-            {/* Creator Updates */}
-            {item.updates.length > 0 && (
-              <View style={styles.updatesSection}>
-                <Text style={styles.sectionHeader}>Progress Updates:</Text>
-                {item.updates.map((update) => (
-                  <View key={update.id} style={styles.updateItem}>
-                    <Text style={styles.updateContent}>{update.content}</Text>
-                    {update.image && (
-                      <Image source={{ uri: update.image }} style={styles.updateImage} />
-                    )}
-                    <Text style={styles.updateTime}>
-                      {new Date(update.timestamp).toLocaleDateString()}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* Participants Breakdown */}
-            <View style={styles.participantsSection}>
-              <Text style={styles.sectionHeader}>Investors:</Text>
-              <View style={styles.participantRow}>
-                <Text style={styles.participantCount}>YES: {item.participantsYes} people</Text>
-                <Text style={styles.participantAmount}>${item.poolYes}</Text>
-              </View>
-              <View style={styles.participantRow}>
-                <Text style={styles.participantCount}>NO: {item.participantsNo} people</Text>
-                <Text style={styles.participantAmount}>${item.poolNo}</Text>
-              </View>
-            </View>
-          </View>
-        )}
       </View>
     );
   };
+
+  const renderCommitmentCard = ({ item }: { item: Commitment }) => {
+    const isExpanded = expandedCards.has(item.id);
+    const timeInfo = formatTimeRemaining(item.expiry);
+    const stats = calculateStats(item);
+    const hasExpired = timeInfo.text === 'Expired';
+    const userWon = hasExpired && item.outcome === item.userChoice;
+
+    return (
+      <TouchableOpacity 
+        style={styles.card}
+        activeOpacity={0.95}
+        onPress={() => toggleExpand(item.id)}
+      >
+        {/* Challenge Image (if available) */}
+        {item.image && (
+          <View style={styles.cardImageContainer}>
+            <Image source={{ uri: item.image }} style={styles.cardImage} />
+            <View style={styles.imageOverlay} />
+          </View>
+        )}
+
+        {/* Main Content */}
+        <View style={styles.cardContent}>
+          {/* Header with creator info */}
+          <View style={styles.cardHeader}>
+            <Image 
+              source={{ uri: item.creator.avatar }} 
+              style={styles.creatorAvatar}
+            />
+            <View style={styles.creatorInfo}>
+              <Text style={styles.creatorName}>{item.creator.username}</Text>
+              <Text style={styles.creatorHandle}>{item.creator.handle}</Text>
+            </View>
+            <View style={[styles.timeBadge, { backgroundColor: `${timeInfo.color}20` }]}>
+              <Text style={[styles.timeText, { color: timeInfo.color }]}>
+                {timeInfo.text}
+              </Text>
+            </View>
+          </View>
+
+          {/* Challenge Title */}
+          <Text style={styles.challengeTitle} numberOfLines={2}>
+            {item.challengeTitle}
+          </Text>
+
+          {/* Your Position */}
+          <View style={styles.positionContainer}>
+            <View style={styles.positionBadge}>
+              <Text style={styles.positionLabel}>YOUR POSITION</Text>
+              <View style={[
+                styles.positionValue,
+                item.userChoice === 'yes' ? styles.yesPosition : styles.noPosition
+              ]}>
+                <Text style={styles.positionText}>
+                  {item.userChoice === 'yes' ? '↑ YES' : '↓ NO'}
+                </Text>
+                <Text style={styles.positionAmount}>${item.stake}</Text>
+              </View>
+            </View>
+
+            {!hasExpired && (
+              <View style={styles.returnsContainer}>
+                <Text style={styles.returnsLabel}>Potential Return</Text>
+                <Text style={styles.returnsValue}>
+                  ${item.expectedPayout.toFixed(2)}
+                </Text>
+                <Text style={[
+                  styles.roiText,
+                  stats.roi > 0 ? styles.roiPositive : styles.roiNeutral
+                ]}>
+                  {stats.roi > 0 ? '+' : ''}{stats.roi}% ROI
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Pool Distribution Bar */}
+          {!hasExpired && (
+            <View style={styles.poolDistribution}>
+              <View style={styles.poolBar}>
+                <View 
+                  style={[
+                    styles.poolBarYes, 
+                    { width: `${stats.userSidePercent}%` }
+                  ]} 
+                />
+              </View>
+              <View style={styles.poolLabels}>
+                <View style={styles.poolLabelItem}>
+                  <View style={[styles.poolDot, { backgroundColor: '#10b981' }]} />
+                  <Text style={styles.poolLabelText}>
+                    YES ${stats.userSidePool} ({stats.userSidePercent}%)
+                  </Text>
+                </View>
+                <View style={styles.poolLabelItem}>
+                  <View style={[styles.poolDot, { backgroundColor: '#ef4444' }]} />
+                  <Text style={styles.poolLabelText}>
+                    NO ${stats.otherSidePool} ({100 - stats.userSidePercent}%)
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Outcome (if expired) */}
+          {hasExpired && (
+            <View style={[
+              styles.outcomeContainer,
+              userWon ? styles.outcomeWin : styles.outcomeLoss
+            ]}>
+              <View style={styles.outcomeContent}>
+                <IconButton 
+                  icon={userWon ? 'check-circle' : 'close-circle'}
+                  size={24}
+                  iconColor={userWon ? '#10b981' : '#ef4444'}
+                  style={styles.outcomeIcon}
+                />
+                <View style={styles.outcomeTextContainer}>
+                  <Text style={[
+                    styles.outcomeText,
+                    { color: userWon ? '#10b981' : '#ef4444' }
+                  ]}>
+                    {userWon ? 'You Won!' : 'You Lost'}
+                  </Text>
+                  {userWon && (
+                    <Text style={styles.outcomeAmount}>
+                      +${item.expectedPayout.toFixed(2)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Expand Button */}
+          <TouchableOpacity 
+            style={styles.expandToggle}
+            onPress={() => toggleExpand(item.id)}
+          >
+            <Text style={styles.expandText}>
+              {isExpanded ? 'Show Less' : 'View Details'}
+            </Text>
+            <IconButton
+              icon={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              iconColor="#6B8AFF"
+              style={styles.expandIcon}
+            />
+          </TouchableOpacity>
+
+          {/* Expanded Content */}
+          {isExpanded && (
+            <View style={styles.expandedSection}>
+              {/* Total Pool Stats */}
+              <View style={styles.statsGrid}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>${stats.totalPool}</Text>
+                  <Text style={styles.statLabel}>Total Pool</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>
+                    {item.participantsYes + item.participantsNo}
+                  </Text>
+                  <Text style={styles.statLabel}>Participants</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>{item.participantsYes}</Text>
+                  <Text style={styles.statLabel}>YES Investors</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>{item.participantsNo}</Text>
+                  <Text style={styles.statLabel}>NO Investors</Text>
+                </View>
+              </View>
+
+              {/* Updates Section */}
+              {item.updates && item.updates.length > 0 && (
+                <View style={styles.updatesSection}>
+                  <Text style={styles.sectionTitle}>Progress Updates</Text>
+                  {item.updates.map((update, idx) => (
+                    <View key={update.id} style={styles.updateCard}>
+                      <View style={styles.updateHeader}>
+                        <View style={styles.updateDot} />
+                        <Text style={styles.updateTime}>
+                          {new Date(update.timestamp).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </Text>
+                      </View>
+                      <Text style={styles.updateText}>{update.content}</Text>
+                      {update.image && (
+                        <Image 
+                          source={{ uri: update.image }} 
+                          style={styles.updateImage} 
+                        />
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <View style={styles.emptyIconContainer}>
+        <IconButton 
+          icon="chart-line" 
+          size={64} 
+          iconColor="#E0E5ED"
+          style={styles.emptyIcon}
+        />
+      </View>
+      <Text style={styles.emptyTitle}>No Active Bets</Text>
+      <Text style={styles.emptyText}>
+        Start investing in your friends' challenges from the Home feed
+      </Text>
+      <TouchableOpacity 
+        style={styles.emptyButton}
+        onPress={() => navigation.replace('Home')}
+      >
+        <Text style={styles.emptyButtonText}>Explore Challenges</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -307,30 +364,24 @@ export default function CommitmentsScreen({ navigation }: Props) {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Investments</Text>
-        <Text style={styles.headerSubtitle}>Supporting friends' challenges</Text>
+        <Text style={styles.headerTitle}>My Bets</Text>
+        <Text style={styles.headerSubtitle}>
+          {bets.length} {bets.length === 1 ? 'Investment' : 'Investments'}
+        </Text>
       </View>
 
-      {/* Commitments List */}
       {bets.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyTitle}>No Bets Yet</Text>
-          <Text style={styles.emptyText}>
-            Start betting on challenges in the Home feed to see them here!
-          </Text>
-        </View>
+        renderEmptyState()
       ) : (
         <FlatList
-          data={commitments}
+          data={bets}
           keyExtractor={(item) => item.id}
           renderItem={renderCommitmentCard}
+          ListHeaderComponent={renderSummaryCard}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
         />
       )}
-
-      {/* Floating + Button - Always Visible */}
-      <FloatingButton />
 
       {/* Bottom Navigation */}
       <BottomNavigation 
@@ -347,287 +398,409 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFB',
   },
   header: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E5ED',
   },
   headerTitle: {
     color: '#1A1D2E',
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: '700',
-    marginBottom: 2,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
     color: '#9CA3AF',
-    fontSize: 12,
+    fontSize: 14,
+    marginTop: 4,
   },
   listContainer: {
-    padding: 12,
+    padding: 16,
+    paddingBottom: 100,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
+  summaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E0E5ED',
+    shadowColor: '#6B8AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  emptyTitle: {
+  summaryTitle: {
     color: '#1A1D2E',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  emptyText: {
-    color: '#9CA3AF',
     fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  summaryStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryStatItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryStatValue: {
+    color: '#1A1D2E',
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  summaryStatLabel: {
+    color: '#9CA3AF',
+    fontSize: 11,
     textAlign: 'center',
-    lineHeight: 22,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#E0E5ED',
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: 16,
+    marginBottom: 16,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E0E5ED',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardImageContainer: {
+    width: '100%',
+    height: 180,
+    position: 'relative',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    background: 'linear-gradient(transparent, rgba(0,0,0,0.3))',
+  },
+  cardContent: {
+    padding: 16,
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E5ED',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  headerLeft: {
+  creatorAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 10,
+  },
+  creatorInfo: {
     flex: 1,
-    marginRight: 12,
+  },
+  creatorName: {
+    color: '#1A1D2E',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  creatorHandle: {
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  timeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  timeText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   challengeTitle: {
     color: '#1A1D2E',
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 2,
-    lineHeight: 20,
+    lineHeight: 22,
+    marginBottom: 16,
   },
-  creatorText: {
+  positionContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  positionBadge: {
+    flex: 1,
+    marginRight: 12,
+  },
+  positionLabel: {
     color: '#9CA3AF',
-    fontSize: 12,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 8,
   },
-  headerRight: {
+  positionValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  yesPosition: {
+    backgroundColor: '#10b98120',
+  },
+  noPosition: {
+    backgroundColor: '#ef444420',
+  },
+  positionText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1D2E',
+  },
+  positionAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1D2E',
+  },
+  returnsContainer: {
+    flex: 1,
     alignItems: 'flex-end',
   },
-  timeRemaining: {
-    fontSize: 12,
+  returnsLabel: {
+    color: '#9CA3AF',
+    fontSize: 10,
     fontWeight: '600',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
+    marginBottom: 4,
   },
-  activeTime: {
+  returnsValue: {
     color: '#10b981',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 2,
   },
-  expiredTime: {
-    color: '#ef4444',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  roiText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
-  investmentSection: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E5ED',
-    backgroundColor: '#F8FAFB',
+  roiPositive: {
+    color: '#10b981',
   },
-  investmentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  investmentLabel: {
+  roiNeutral: {
     color: '#9CA3AF',
-    fontSize: 14,
-    fontWeight: '500',
   },
-  choiceBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 16,
+  poolDistribution: {
+    marginBottom: 16,
   },
-  yesBadge: {
+  poolBar: {
+    height: 6,
+    backgroundColor: '#ef444420',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  poolBarYes: {
+    height: '100%',
     backgroundColor: '#10b981',
+    borderRadius: 3,
   },
-  noBadge: {
-    backgroundColor: '#FF6B6B',
-  },
-  choiceText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  poolStats: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E5ED',
-  },
-  poolRow: {
+  poolLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
   },
-  poolLabel: {
+  poolLabelItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  poolDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  poolLabelText: {
     color: '#9CA3AF',
-    fontSize: 12,
-  },
-  poolValue: {
-    color: '#1A1D2E',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
   },
-  payoutRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E5ED',
-  },
-  payoutLabel: {
-    color: '#6B8AFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  payoutValue: {
-    color: '#6B8AFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  outcomeSection: {
-    padding: 16,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E5ED',
+  outcomeContainer: {
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
   },
   outcomeWin: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: '#10b98115',
+    borderWidth: 1,
+    borderColor: '#10b98140',
   },
   outcomeLoss: {
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    backgroundColor: '#ef444415',
+    borderWidth: 1,
+    borderColor: '#ef444440',
+  },
+  outcomeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  outcomeIcon: {
+    margin: 0,
+  },
+  outcomeTextContainer: {
+    flex: 1,
   },
   outcomeText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A1D2E',
     marginBottom: 2,
   },
-  payoutReceived: {
+  outcomeAmount: {
     fontSize: 14,
+    fontWeight: '600',
     color: '#10b981',
-    fontWeight: '600',
   },
-  expandButton: {
-    padding: 12,
+  expandToggle: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFB',
+    justifyContent: 'center',
+    paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: '#E0E5ED',
   },
-  expandButtonText: {
+  expandText: {
     color: '#6B8AFF',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
-  expandedContent: {
-    padding: 16,
-    backgroundColor: '#F8FAFB',
+  expandIcon: {
+    margin: 0,
+  },
+  expandedSection: {
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#E0E5ED',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+    gap: 8,
+  },
+  statBox: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: '#F8FAFB',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  statValue: {
+    color: '#1A1D2E',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  statLabel: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    textAlign: 'center',
   },
   updatesSection: {
-    marginBottom: 16,
+    marginTop: 8,
   },
-  sectionHeader: {
+  sectionTitle: {
     color: '#1A1D2E',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  updateCard: {
+    backgroundColor: '#F8FAFB',
+    borderRadius: 10,
+    padding: 12,
     marginBottom: 8,
   },
-  updateItem: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#E0E5ED',
-  },
-  updateContent: {
-    color: '#1A1D2E',
-    fontSize: 12,
+  updateHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 6,
   },
-  updateImage: {
-    width: 80,
-    height: 60,
-    borderRadius: 6,
-    resizeMode: 'cover',
-    marginBottom: 6,
+  updateDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#6B8AFF',
+    marginRight: 8,
   },
   updateTime: {
     color: '#9CA3AF',
-    fontSize: 10,
-  },
-  participantsSection: {},
-  participantRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  participantCount: {
-    color: '#1A1D2E',
-    fontSize: 12,
-    flex: 1,
-  },
-  participantAmount: {
-    color: '#6B8AFF',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
-  bottomNav: {
-    flexDirection: 'row',
-    backgroundColor: '#000',
-    borderTopWidth: 1,
-    borderTopColor: '#1f2937',
-    height: 60,
-    paddingBottom: 8,
-    paddingTop: 8,
+  updateText: {
+    color: '#1A1D2E',
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 8,
   },
-  navItem: {
+  updateImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    resizeMode: 'cover',
+  },
+  emptyContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+    alignItems: 'center',
+    paddingHorizontal: 40,
   },
-  activeNavItem: {
-    backgroundColor: 'transparent',
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#F8FAFB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
   },
-  navIcon: {
+  emptyIcon: {
     margin: 0,
-    width: 24,
-    height: 24,
   },
-  navText: {
-    color: '#9ca3af',
-    fontSize: 10,
-    marginTop: 2,
+  emptyTitle: {
+    color: '#1A1D2E',
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 12,
   },
-  activeNavText: {
-    color: '#4f46e5',
+  emptyText: {
+    color: '#9CA3AF',
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  emptyButton: {
+    backgroundColor: '#6B8AFF',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  emptyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
