@@ -14,6 +14,7 @@ export interface SocialPost {
   poolNo?: number;
   participantsYes?: number;
   participantsNo?: number;
+  expiry?: string; // ISO string for expiration date
   userCommitment?: {
     choice: 'yes' | 'no';
     locked: boolean;
@@ -35,6 +36,7 @@ export const mockSocialPosts: SocialPost[] = [
     poolNo: 40,
     participantsYes: 4,
     participantsNo: 2,
+    expiry: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(), // 25 days
   },
   {
     id: '2',
@@ -51,6 +53,7 @@ export const mockSocialPosts: SocialPost[] = [
     poolNo: 45,
     participantsYes: 2,
     participantsNo: 3,
+    expiry: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days
   },
   {
     id: '3',
@@ -67,6 +70,7 @@ export const mockSocialPosts: SocialPost[] = [
     poolNo: 50,
     participantsYes: 4,
     participantsNo: 2,
+    expiry: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days
   },
   {
     id: '4',
@@ -82,6 +86,7 @@ export const mockSocialPosts: SocialPost[] = [
     poolNo: 25,
     participantsYes: 3,
     participantsNo: 2,
+    expiry: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days
   },
   {
     id: '5',
@@ -98,6 +103,7 @@ export const mockSocialPosts: SocialPost[] = [
     poolNo: 30,
     participantsYes: 4,
     participantsNo: 2,
+    expiry: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days
   },
   {
     id: '6',
@@ -113,6 +119,7 @@ export const mockSocialPosts: SocialPost[] = [
     poolNo: 60,
     participantsYes: 3,
     participantsNo: 2,
+    expiry: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(), // 20 days
   },
   {
     id: '7',
@@ -129,6 +136,7 @@ export const mockSocialPosts: SocialPost[] = [
     poolNo: 24,
     participantsYes: 3,
     participantsNo: 2,
+    expiry: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(), // 6 days
   },
   {
     id: '8',
@@ -144,5 +152,6 @@ export const mockSocialPosts: SocialPost[] = [
     poolNo: 36,
     participantsYes: 3,
     participantsNo: 2,
+    expiry: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days
   },
 ];

@@ -26,6 +26,7 @@ interface SocialPostProps {
   poolNo?: number;
   participantsYes?: number;
   participantsNo?: number;
+  expiry?: string;
   userCommitment?: {
     choice: 'yes' | 'no';
     locked: boolean;
@@ -49,9 +50,29 @@ export default function SocialPost({
   poolNo = 0,
   participantsYes = 0,
   participantsNo = 0,
+  expiry,
   userCommitment,
   onCommit,
 }: SocialPostProps) {
+  // Format expiry date
+  const formatExpiry = (expiryDate: string | undefined) => {
+    if (!expiryDate) return '';
+    
+    const now = new Date();
+    const expDate = new Date(expiryDate);
+    const diffMs = expDate.getTime() - now.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    if (diffDays > 0) {
+      return `${diffDays}d ${diffHours}h left`;
+    } else if (diffHours > 0) {
+      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      return `${diffHours}h ${diffMinutes}m left`;
+    } else {
+      return 'Ending soon';
+    }
+  };
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -68,6 +89,11 @@ export default function SocialPost({
               <Text style={styles.handle}>{handle}</Text>
               <Text style={styles.timestamp}>• {timestamp}</Text>
             </View>
+            {expiry && stake && (
+              <View style={styles.expiryRow}>
+                <Text style={styles.expiryText}>⏱ {formatExpiry(expiry)}</Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
