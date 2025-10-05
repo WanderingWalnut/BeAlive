@@ -19,6 +19,9 @@ import BottomNavigation from "../components/BottomNavigation";
 import { supabase } from "../lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+const PROFILE_CACHE_KEY = "@profile_data";
+const AVATAR_CACHE_KEY = "@profile_avatar_url";
+
 type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
 
 type ProfileRow = {
@@ -29,6 +32,10 @@ type ProfileRow = {
   avatar_url: string | null;
 };
 
+type CachedProfile = ProfileRow & {
+  cachedAt: number;
+};
+
 export default function ProfileScreen({ navigation }: Props) {
   const [index] = useState(2);
 
@@ -36,6 +43,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   // signed HTTPS URL for <Image />
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const displayName = profile?.full_name || profile?.username || "User";
   const handle = profile?.username ? `@${profile.username}` : "";
@@ -47,7 +55,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
   // --- Data loading ---------------------------------------------------------
 
-  async function fetchProfileForCurrentUser() {
+  async function fetchProfileForCurrentUser(forceRefresh = false) {
     const { data: auth } = await supabase.auth.getUser();
     const uid = auth.user?.id;
 
@@ -57,22 +65,67 @@ export default function ProfileScreen({ navigation }: Props) {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("user_id, username, full_name, avatar_url")
-      .eq("user_id", uid)
-      .single<ProfileRow>();
+    // Load from cache first if not forcing refresh
+    if (!forceRefresh) {
+      try {
+        const cached = await AsyncStorage.getItem(PROFILE_CACHE_KEY);
+        if (cached) {
+          const cachedProfile: CachedProfile = JSON.parse(cached);
+          // Use cached data if it's less than 5 minutes old
+          if (Date.now() - cachedProfile.cachedAt < 5 * 60 * 1000) {
+            setProfile(cachedProfile);
+            setLoading(false);
+          }
+        }
 
-    if (!error && data) {
-      setProfile(data);
-    } else {
-      // profile row doesn't exist yet — still show something
-      setProfile({
-        user_id: uid,
-        username: null,
-        full_name: null,
-        avatar_url: null,
-      });
+        // Load cached avatar URL
+        const cachedAvatar = await AsyncStorage.getItem(AVATAR_CACHE_KEY);
+        if (cachedAvatar) {
+          setAvatarUrl(cachedAvatar);
+        }
+      } catch (err) {
+        console.error("Error loading cached profile:", err);
+      }
+    }
+
+    // Fetch fresh data in the background
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, username, full_name, avatar_url")
+        .eq("user_id", uid)
+        .single<ProfileRow>();
+
+      let profileData: ProfileRow;
+      if (!error && data) {
+        profileData = data;
+      } else {
+        // profile row doesn't exist yet — still show something
+        profileData = {
+          user_id: uid,
+          username: null,
+          full_name: null,
+          avatar_url: null,
+        };
+      }
+
+      // Update state
+      setProfile(profileData);
+
+      // Cache the profile data
+      try {
+        const cached: CachedProfile = {
+          ...profileData,
+          cachedAt: Date.now(),
+        };
+        await AsyncStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(cached));
+      } catch (err) {
+        console.error("Error caching profile:", err);
+      }
+    } catch (err) {
+      console.error("Error fetching profile:", err);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -84,7 +137,8 @@ export default function ProfileScreen({ navigation }: Props) {
    * If neither is usable, optionally list newest object in the user's folder.
    */
   async function resolveAvatarSimple(profileRow: ProfileRow | null) {
-    setAvatarUrl(null);
+    // Don't clear avatar if we already have a cached one
+    // setAvatarUrl(null);
 
     // get current auth user for metadata + fallback uid
     const { data: auth } = await supabase.auth.getUser();
@@ -107,7 +161,14 @@ export default function ProfileScreen({ navigation }: Props) {
           .from("avatars")
           .createSignedUrl(candidateKey, 60 * 10);
         if (!error && data?.signedUrl) {
-          setAvatarUrl(`${data.signedUrl}&t=${Date.now()}`);
+          const signedUrl = `${data.signedUrl}&t=${Date.now()}`;
+          setAvatarUrl(signedUrl);
+          // Cache the avatar URL
+          try {
+            await AsyncStorage.setItem(AVATAR_CACHE_KEY, signedUrl);
+          } catch (err) {
+            console.error("Error caching avatar URL:", err);
+          }
           return;
         }
       } catch {
@@ -130,8 +191,16 @@ export default function ProfileScreen({ navigation }: Props) {
         .from("avatars")
         .createSignedUrl(newestKey, 60 * 10);
 
-      if (signed.data?.signedUrl)
-        setAvatarUrl(`${signed.data.signedUrl}&t=${Date.now()}`);
+      if (signed.data?.signedUrl) {
+        const signedUrl = `${signed.data.signedUrl}&t=${Date.now()}`;
+        setAvatarUrl(signedUrl);
+        // Cache the avatar URL
+        try {
+          await AsyncStorage.setItem(AVATAR_CACHE_KEY, signedUrl);
+        } catch (err) {
+          console.error("Error caching avatar URL:", err);
+        }
+      }
     } catch {
       // ignore; avatar remains null -> initial fallback renders
     }
@@ -142,7 +211,8 @@ export default function ProfileScreen({ navigation }: Props) {
     useCallback(() => {
       let active = true;
       (async () => {
-        await fetchProfileForCurrentUser();
+        // Load from cache first, then refresh in background
+        await fetchProfileForCurrentUser(false);
       })();
       return () => {
         active = false;
@@ -177,7 +247,13 @@ export default function ProfileScreen({ navigation }: Props) {
   const performLogout = async () => {
     try {
       await supabase.auth.signOut();
-      await AsyncStorage.multiRemove(["userPosts", "userChallenges"]);
+      await AsyncStorage.multiRemove([
+        "userPosts",
+        "userChallenges",
+        PROFILE_CACHE_KEY,
+        AVATAR_CACHE_KEY,
+        "@commitments_cache",
+      ]);
       navigation.reset({ index: 0, routes: [{ name: "Login" }] });
     } catch {
       navigation.reset({ index: 0, routes: [{ name: "Login" }] });
