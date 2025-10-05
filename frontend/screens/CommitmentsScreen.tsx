@@ -12,6 +12,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import BottomNavigation from '../components/BottomNavigation';
+import { useBets } from '../contexts/BetsContext';
 import FloatingButton from '../components/FloatingButton';
 
 interface Commitment {
@@ -45,6 +46,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Commitments'>;
 export default function CommitmentsScreen({ navigation }: Props) {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [index, setIndex] = useState(1); // Start with commitments tab active
+  const { bets } = useBets();
 
   const handleTabPress = (key: string) => {
     if (key === 'home') {
@@ -54,8 +56,8 @@ export default function CommitmentsScreen({ navigation }: Props) {
     }
   };
 
-  // Mock data for committed challenges
-  const commitments: Commitment[] = [
+  // Use bets from context, or show mock data if no bets yet
+  const commitments: Commitment[] = bets.length > 0 ? bets : [
     {
       id: '1',
       challengeTitle: 'Will I go to the gym 5 days this week?',
@@ -310,13 +312,22 @@ export default function CommitmentsScreen({ navigation }: Props) {
       </View>
 
       {/* Commitments List */}
-      <FlatList
-        data={commitments}
-        keyExtractor={(item) => item.id}
-        renderItem={renderCommitmentCard}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-      />
+      {bets.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTitle}>No Bets Yet</Text>
+          <Text style={styles.emptyText}>
+            Start betting on challenges in the Home feed to see them here!
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={commitments}
+          keyExtractor={(item) => item.id}
+          renderItem={renderCommitmentCard}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* Floating + Button - Always Visible */}
       <FloatingButton />
@@ -356,6 +367,24 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    color: '#1A1D2E',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  emptyText: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   card: {
     backgroundColor: '#FFFFFF',

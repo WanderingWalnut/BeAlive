@@ -15,11 +15,13 @@ import { SocialPost, mockSocialPosts } from '../services/socialData';
 import SocialPostComponent from '../components/SocialPost';
 import BottomNavigation from '../components/BottomNavigation';
 import FloatingButton from '../components/FloatingButton';
+import { useBets } from '../contexts/BetsContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export default function HomeScreen({ navigation, route }: Props) {
   const { user: routeUser } = route.params || {};
+  const { addBet, hasBet } = useBets();
   
   // Create a mock user if none provided (for navigation from other screens)
   const user = routeUser || {
@@ -39,34 +41,84 @@ export default function HomeScreen({ navigation, route }: Props) {
 
   const handleCommit = (postId: string, choice: 'yes' | 'no') => {
     const post = posts.find(p => p.id === postId);
-    const choiceText = choice === 'yes' ? 'YES (investing in their success)' : 'NO (betting against their success)';
+    
+    if (!post || !post.stake) {
+      return;
+    }
+    
+    // Check if user already has a bet on this post
+    if (hasBet(postId)) {
+      Alert.alert('Already Bet', 'You have already placed a bet on this challenge.');
+      return;
+    }
+    
+    const choiceText = choice === 'yes' 
+      ? 'YES - I believe they will complete this challenge' 
+      : 'NO - I don\'t think they will complete this challenge';
     
     Alert.alert(
-      'Make Your Investment',
-      `Are you sure you want to invest ${choiceText}? This choice cannot be changed and you'll commit $${post?.stake || 0} to the prize pool.`,
+      'Confirm Your Bet',
+      `${choiceText}\n\nStake: $${post.stake}\n\nThis bet will be added to "My Bets" and cannot be changed once confirmed.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'Invest', 
+          text: 'Confirm Bet', 
           style: 'default',
           onPress: () => {
+            // Update post in feed
             setPosts(prevPosts =>
-              prevPosts.map(post => {
-                if (post.id === postId) {
+              prevPosts.map(p => {
+                if (p.id === postId) {
                   return {
-                    ...post,
+                    ...p,
                     userCommitment: {
                       choice,
                       locked: true,
                     },
-                    poolYes: choice === 'yes' ? post.poolYes + post.stake : post.poolYes,
-                    poolNo: choice === 'no' ? post.poolNo + post.stake : post.poolNo,
-                    participantsYes: choice === 'yes' ? post.participantsYes + 1 : post.participantsYes,
-                    participantsNo: choice === 'no' ? post.participantsNo + 1 : post.participantsNo,
+                    poolYes: choice === 'yes' ? p.poolYes + p.stake! : p.poolYes,
+                    poolNo: choice === 'no' ? p.poolNo + p.stake! : p.poolNo,
+                    participantsYes: choice === 'yes' ? p.participantsYes + 1 : p.participantsYes,
+                    participantsNo: choice === 'no' ? p.participantsNo + 1 : p.participantsNo,
                   };
                 }
-                return post;
+                return p;
               })
+            );
+            
+            // Add to My Bets
+            const updatedPoolYes = choice === 'yes' ? post.poolYes + post.stake : post.poolYes;
+            const updatedPoolNo = choice === 'no' ? post.poolNo + post.stake : post.poolNo;
+            const totalPool = updatedPoolYes + updatedPoolNo;
+            const userSidePool = choice === 'yes' ? updatedPoolYes : updatedPoolNo;
+            const expectedPayout = userSidePool > 0 ? (post.stake / userSidePool) * totalPool : post.stake;
+            
+            addBet({
+              id: `bet-${postId}-${Date.now()}`,
+              postId: postId,
+              challengeTitle: post.content,
+              creator: {
+                username: post.username,
+                handle: post.handle,
+                avatar: `https://i.pravatar.cc/150?u=${post.username}`,
+              },
+              userChoice: choice,
+              stake: post.stake,
+              poolYes: updatedPoolYes,
+              poolNo: updatedPoolNo,
+              participantsYes: choice === 'yes' ? post.participantsYes + 1 : post.participantsYes,
+              participantsNo: choice === 'no' ? post.participantsNo + 1 : post.participantsNo,
+              expectedPayout: Math.round(expectedPayout * 100) / 100,
+              expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+              image: post.image,
+              isExpired: false,
+              updates: [],
+            });
+            
+            // Show success message
+            Alert.alert(
+              'Bet Placed!',
+              `Your bet has been added to "My Bets". You can view it in the Bets tab.`,
+              [{ text: 'OK' }]
             );
           }
         }
