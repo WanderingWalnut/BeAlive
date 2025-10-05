@@ -18,6 +18,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import { IconButton } from 'react-native-paper';
+import * as ImagePicker from 'expo-image-picker';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChallengeCreation'>;
 
@@ -30,25 +31,29 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const handleCreateChallenge = async () => {
-    if (!title.trim() || !description.trim()) {
-      Alert.alert('Missing Information', 'Please fill in both title and description.');
+    if (!title.trim()) {
+      Alert.alert('Missing Information', 'Please add a challenge title.');
+      return;
+    }
+
+    if (!selectedImage) {
+      Alert.alert('Missing Photo', 'Please take a photo to prove your challenge.');
       return;
     }
 
     try {
       setLoading(true);
       
-      // In a real app, create challenge in backend
-      Alert.alert(
-        'Challenge Created!',
-        'Your challenge has been shared with your friends.',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+      // Navigate back to Home with the new challenge data
+      navigation.navigate('Home', {
+        newChallenge: {
+          title: title.trim(),
+          description: description.trim(),
+          stake: parseInt(stake) || 10,
+          expiryDays: parseInt(expiryDays) || 7,
+          image: selectedImage,
+        },
+      });
     } catch (error: any) {
       Alert.alert('Error', 'Failed to create challenge. Please try again.');
     } finally {
@@ -56,12 +61,60 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
     }
   };
 
-  const handleTakePhoto = () => {
-    Alert.alert('Take Photo', 'Camera functionality coming soon!');
+  const handleTakePhoto = async () => {
+    try {
+      // Request camera permissions
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Denied',
+          'Camera permission is required to take photos.'
+        );
+        return;
+      }
+
+      // Launch camera
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open camera. Please try again.');
+    }
   };
 
-  const handleSelectImage = () => {
-    Alert.alert('Select Image', 'Image picker functionality coming soon!');
+  const handleSelectImage = async () => {
+    try {
+      // Request media library permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Denied',
+          'Photo library permission is required to select images.'
+        );
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to select image. Please try again.');
+    }
   };
 
   return (
@@ -76,8 +129,8 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
         <Text style={styles.headerTitle}>Create Challenge</Text>
         <TouchableOpacity
           onPress={handleCreateChallenge}
-          disabled={!title.trim() || !description.trim() || loading}
-          style={[styles.createButton, (!title.trim() || !description.trim() || loading) && styles.createButtonDisabled]}
+          disabled={!title.trim() || !selectedImage || loading}
+          style={[styles.createButton, (!title.trim() || !selectedImage || loading) && styles.createButtonDisabled]}
         >
           <Text style={styles.createButtonText}>Create</Text>
         </TouchableOpacity>
@@ -100,18 +153,26 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
-                  <IconButton
-                    icon="camera"
-                    size={32}
-                    iconColor="#4f46e5"
-                    style={styles.cameraIcon}
-                  />
-                  <Text style={styles.photoButtonText}>Take Photo</Text>
-                  <Text style={styles.photoHelperText}>
-                    Add a photo to prove your challenge
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.photoOptions}>
+                  <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
+                    <IconButton
+                      icon="camera"
+                      size={32}
+                      iconColor="#6B8AFF"
+                      style={styles.cameraIcon}
+                    />
+                    <Text style={styles.photoButtonText}>Take Photo</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.photoButton} onPress={handleSelectImage}>
+                    <IconButton
+                      icon="image"
+                      size={32}
+                      iconColor="#6B8AFF"
+                      style={styles.cameraIcon}
+                    />
+                    <Text style={styles.photoButtonText}>Choose Photo</Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
 
@@ -288,7 +349,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
+  photoOptions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   photoButton: {
+    flex: 1,
     height: 120,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -303,10 +369,9 @@ const styles = StyleSheet.create({
   },
   photoButtonText: {
     color: '#6B8AFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    marginTop: 8,
-    marginBottom: 4,
+    marginTop: 4,
   },
   photoHelperText: {
     color: '#9CA3AF',

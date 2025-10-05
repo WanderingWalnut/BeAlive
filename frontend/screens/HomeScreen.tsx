@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,7 @@ import { useBets } from '../contexts/BetsContext';
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export default function HomeScreen({ navigation, route }: Props) {
-  const { user: routeUser } = route.params || {};
+  const { user: routeUser, newChallenge } = route.params || {};
   const { addBet, hasBet } = useBets();
   
   // Create a mock user if none provided (for navigation from other screens)
@@ -38,6 +38,35 @@ export default function HomeScreen({ navigation, route }: Props) {
     { key: 'home', title: 'Home', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
     { key: 'settings', title: 'Settings', focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
   ]);
+
+  // Handle new challenge creation
+  useEffect(() => {
+    if (newChallenge) {
+      const newPost: SocialPost = {
+        id: `challenge-${Date.now()}`,
+        username: `${user.first_name} ${user.last_name}`,
+        handle: `@${user.first_name.toLowerCase()}`,
+        timestamp: 'Just now',
+        content: newChallenge.title,
+        image: newChallenge.image,
+        upvotes: 0,
+        downvotes: 0,
+        stake: newChallenge.stake,
+        poolYes: 0,
+        poolNo: 0,
+        participantsYes: 0,
+        participantsNo: 0,
+        expiry: new Date(Date.now() + newChallenge.expiryDays * 24 * 60 * 60 * 1000).toISOString(),
+      };
+
+      setPosts(prevPosts => [newPost, ...prevPosts]);
+      
+      // Clear the newChallenge from route params
+      navigation.setParams({ newChallenge: undefined } as any);
+      
+      Alert.alert('Success!', 'Your challenge has been created and shared with friends.');
+    }
+  }, [newChallenge]);
 
   const handleCommit = (postId: string, choice: 'yes' | 'no') => {
     const post = posts.find(p => p.id === postId);
@@ -75,10 +104,10 @@ export default function HomeScreen({ navigation, route }: Props) {
                       choice,
                       locked: true,
                     },
-                    poolYes: choice === 'yes' ? p.poolYes + p.stake! : p.poolYes,
-                    poolNo: choice === 'no' ? p.poolNo + p.stake! : p.poolNo,
-                    participantsYes: choice === 'yes' ? p.participantsYes + 1 : p.participantsYes,
-                    participantsNo: choice === 'no' ? p.participantsNo + 1 : p.participantsNo,
+                    poolYes: choice === 'yes' ? (p.poolYes || 0) + (p.stake || 0) : (p.poolYes || 0),
+                    poolNo: choice === 'no' ? (p.poolNo || 0) + (p.stake || 0) : (p.poolNo || 0),
+                    participantsYes: choice === 'yes' ? (p.participantsYes || 0) + 1 : (p.participantsYes || 0),
+                    participantsNo: choice === 'no' ? (p.participantsNo || 0) + 1 : (p.participantsNo || 0),
                   };
                 }
                 return p;
@@ -86,8 +115,8 @@ export default function HomeScreen({ navigation, route }: Props) {
             );
             
             // Add to My Bets
-            const updatedPoolYes = choice === 'yes' ? post.poolYes + post.stake : post.poolYes;
-            const updatedPoolNo = choice === 'no' ? post.poolNo + post.stake : post.poolNo;
+            const updatedPoolYes = choice === 'yes' ? (post.poolYes || 0) + post.stake : (post.poolYes || 0);
+            const updatedPoolNo = choice === 'no' ? (post.poolNo || 0) + post.stake : (post.poolNo || 0);
             const totalPool = updatedPoolYes + updatedPoolNo;
             const userSidePool = choice === 'yes' ? updatedPoolYes : updatedPoolNo;
             const expectedPayout = userSidePool > 0 ? (post.stake / userSidePool) * totalPool : post.stake;
@@ -105,10 +134,10 @@ export default function HomeScreen({ navigation, route }: Props) {
               stake: post.stake,
               poolYes: updatedPoolYes,
               poolNo: updatedPoolNo,
-              participantsYes: choice === 'yes' ? post.participantsYes + 1 : post.participantsYes,
-              participantsNo: choice === 'no' ? post.participantsNo + 1 : post.participantsNo,
+              participantsYes: choice === 'yes' ? (post.participantsYes || 0) + 1 : (post.participantsYes || 0),
+              participantsNo: choice === 'no' ? (post.participantsNo || 0) + 1 : (post.participantsNo || 0),
               expectedPayout: Math.round(expectedPayout * 100) / 100,
-              expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+              expiry: post.expiry || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
               image: post.image,
               isExpired: false,
               updates: [],

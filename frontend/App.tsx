@@ -47,6 +47,13 @@ export type RootStackParamList = {
       last_name: string;
       created_at: string;
     };
+    newChallenge?: {
+      title: string;
+      description: string;
+      stake: number;
+      expiryDays: number;
+      image: string;
+    };
   };
   ChallengeCreation: undefined;
   Commitments: undefined;
