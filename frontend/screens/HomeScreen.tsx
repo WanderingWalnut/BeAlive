@@ -460,6 +460,14 @@ export default function HomeScreen({ navigation, route }: Props) {
 
   
 
+  const handleTabPress = (key: string) => {
+    if (key === 'commitments') {
+      navigation.replace('Commitments');
+    } else if (key === 'settings') {
+      navigation.replace('Profile');
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       {
@@ -518,21 +526,7 @@ export default function HomeScreen({ navigation, route }: Props) {
                 <ActivityIndicator size="large" color="#6B8AFF" />
                 <Text style={styles.loadingText}>Loading feed...</Text>
               </View>
-<<<<<<< HEAD
             ) : (error || posts.length === 0) ? (
-=======
-            ) : error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity
-                  style={styles.button}
-                  onPress={() => fetchPosts(true)}
-                >
-                  <Text style={styles.buttonText}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            ) : posts.length === 0 ? (
->>>>>>> 51ae048d452cd28115d6959c70705d9bdcfb7070
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyTitle}>Stand by</Text>
                 <Text style={styles.emptyText}>
