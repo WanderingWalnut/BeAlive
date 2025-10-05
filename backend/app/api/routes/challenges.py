@@ -17,10 +17,12 @@ from app.models import (
     ChallengeUpdate,
     ChallengeOut,
     ChallengeDetail,
+    ChallengeStats,
     PostWithCounts,
 )
 from app.utils.auth import extract_bearer_token, get_supabase_user_from_token
 from app.services.challenges import ChallengeService
+from app.services.aggregates import AggregatesService
 
 
 router = APIRouter()
@@ -88,3 +90,13 @@ async def list_challenges(
     """List challenges with optional filters and cursor-based pagination by created_at."""
     service = ChallengeService()
     return service.list_challenges(creator_id=creator_id, active=active, cursor=cursor, limit=limit)
+
+
+@router.get("/challenges/{challenge_id}/stats", response_model=ChallengeStats)
+async def get_challenge_stats(challenge_id: int):
+    """Return aggregate stats for a single challenge."""
+    svc = AggregatesService()
+    try:
+        return svc.challenge_stats(challenge_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Challenge not found")

@@ -5,6 +5,7 @@ Authentication endpoints
 import json
 import urllib.request
 from typing import Any, Dict, Optional
+from uuid import UUID
 from fastapi import APIRouter, HTTPException, Header, status
 
 from app.core.config import settings
@@ -12,7 +13,9 @@ from app.services.supabase import get_supabase_client
 from app.models import (
     ProfileOut,
     ProfileUpdate,
+    MeSummary,
 )
+from app.services.aggregates import AggregatesService
 
 
 def _extract_bearer_token(authorization: Optional[str]) -> str:
@@ -114,6 +117,16 @@ async def update_current_user_profile(body: ProfileUpdate, authorization: Option
     if not profile:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update profile")
     return profile  # type: ignore[return-value]
+
+
+@router.get("/me/summary", response_model=MeSummary)
+async def get_me_summary(authorization: Optional[str] = Header(None)) -> MeSummary:
+    """Return aggregate summary for the current user (followers, following, counts, totals)."""
+    token = _extract_bearer_token(authorization)
+    user_payload = _get_supabase_user_from_token(token)
+    user_id = user_payload["id"]
+    svc = AggregatesService()
+    return svc.me_summary(UUID(user_id))
 
 
 # Network endpoints have been moved to routes/network.py

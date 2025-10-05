@@ -38,6 +38,9 @@ from .network import (
     NetworkCounts,
     NetworkListResponse,
 )
+from .summary import (
+    MeSummary,
+)
 
 __all__ = [
     # common
@@ -75,4 +78,6 @@ __all__ = [
     "FollowRequest",
     "NetworkCounts",
     "NetworkListResponse",
+    # summary
+    "MeSummary",
 ]
