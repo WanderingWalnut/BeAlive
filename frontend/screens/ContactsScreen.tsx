@@ -12,6 +12,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import Icon from '../components/Icon';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Contact = {
   id: string;
@@ -26,27 +27,82 @@ export default function ContactsScreen({ navigation, route }: Props) {
   const { phone, username } = route.params;
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Mock contacts data
+  // Load contacts from device (expo-contacts) and preload saved selections
   useEffect(() => {
-    const mockContacts: Contact[] = [
-      { id: '1', name: 'Alex Johnson', phone: '+1234567890', selected: true },
-      { id: '2', name: 'Sarah Chen', phone: '+1234567891', selected: true },
-      { id: '3', name: 'Mike Wilson', phone: '+1234567892', selected: true },
-      { id: '4', name: 'Emma Davis', phone: '+1234567893', selected: false },
-      { id: '5', name: 'David Brown', phone: '+1234567894', selected: true },
-      { id: '6', name: 'Lisa Garcia', phone: '+1234567895', selected: false },
-      { id: '7', name: 'Tom Anderson', phone: '+1234567896', selected: true },
-      { id: '8', name: 'Mom', phone: '+1234567897', selected: false },
-      { id: '9', name: 'Dad', phone: '+1234567898', selected: false },
-      { id: '10', name: 'Boss', phone: '+1234567899', selected: false },
-    ];
+    let mounted = true;
 
-    setTimeout(() => {
-      setContacts(mockContacts);
-      setLoading(false);
-    }, 1000);
+    const load = async () => {
+      try {
+        // Dynamic import to avoid static native module issues during type-check
+        const ContactsModule: any = await import('expo-contacts');
+
+        // Request permissions
+        const { status } = await ContactsModule.requestPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            'Contacts Permission',
+            'Permission to access contacts was denied. You can still select contacts manually.'
+          );
+          // Try loading any previously saved selections
+          const saved = await AsyncStorage.getItem('selectedContacts');
+          const parsed = saved ? JSON.parse(saved) : [];
+          if (mounted) {
+            setContacts(parsed.map((c: any, idx: number) => ({ id: `${idx}-${c.phone}`, name: c.name, phone: c.phone, selected: true })));
+            setLoading(false);
+          }
+          return;
+        }
+
+        // Fetch all contacts with phone numbers
+        const { data } = await ContactsModule.getContactsAsync({
+          fields: [ContactsModule.Fields.PhoneNumbers],
+          pageSize: 10000,
+        });
+
+        // Load previously saved selected contacts by phone to pre-select
+        const savedRaw = await AsyncStorage.getItem('selectedContacts');
+        const saved = savedRaw ? JSON.parse(savedRaw) : [];
+        const savedPhones = new Set(saved.map((s: any) => normalizePhone(s.phone)));
+
+        const mapped: Contact[] = (data || [])
+          .map((c: any) => {
+            const phone = c.phoneNumbers && c.phoneNumbers.length > 0 ? c.phoneNumbers[0].number : undefined;
+            const name = c.name || [c.firstName, c.lastName].filter(Boolean).join(' ') || phone || 'Unknown';
+            if (!phone) return null;
+            return {
+              id: c.id,
+              name,
+              phone,
+              selected: savedPhones.has(normalizePhone(phone)),
+            } as Contact;
+          })
+          .filter(Boolean) as Contact[];
+
+        if (mounted) {
+          setContacts(mapped);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error loading contacts:', err);
+        Alert.alert('Error', 'Could not load device contacts. Using saved selections if available.');
+        const saved = await AsyncStorage.getItem('selectedContacts');
+        const parsed = saved ? JSON.parse(saved) : [];
+        if (mounted) {
+          setContacts(parsed.map((c: any, idx: number) => ({ id: `${idx}-${c.phone}`, name: c.name, phone: c.phone, selected: true })));
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+    return () => { mounted = false; };
   }, []);
+
+  // Normalize phone numbers for matching (strip non-digits, keep leading + if present)
+  const normalizePhone = (p?: string) => {
+    if (!p) return '';
+    return p.replace(/[^0-9+]/g, '').replace(/^\+?0+/, '+');
+  };
 
   const toggleContact = (id: string) => {
     setContacts(prev => 
@@ -68,10 +124,12 @@ export default function ContactsScreen({ navigation, route }: Props) {
 
   const handleContinue = () => {
     const selectedContacts = contacts.filter(contact => contact.selected);
-    navigation.navigate('SharingSettings', { 
-      phone, 
+    // Persist selections
+    AsyncStorage.setItem('selectedContacts', JSON.stringify(selectedContacts.map(c => ({ name: c.name, phone: c.phone }))));
+    navigation.navigate('SharingSettings', {
+      phone,
       username,
-      selectedContacts 
+      selectedContacts,
     });
   };
 
