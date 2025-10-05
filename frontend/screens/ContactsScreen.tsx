@@ -12,6 +12,9 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import Icon from '../components/Icon';
+import { theme } from '../theme';
+
+const COLORS = theme.colors;
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Contact = {
@@ -242,9 +245,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E6E9EE',
+    borderBottomColor: COLORS.outline,
   },
   title: {
     fontSize: 22,
@@ -268,17 +271,17 @@ const styles = StyleSheet.create({
   controlButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E6E9EE',
+    borderColor: COLORS.outline,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
     shadowRadius: 4,
   },
   controlButtonText: {
-    color: '#6B46FF',
+    color: COLORS.primary,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -293,15 +296,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E6E9EE',
+    borderColor: COLORS.outline,
   },
   contactItemSelected: {
-    borderColor: '#6B46FF',
-    backgroundColor: '#F5F3FF',
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryContainer,
   },
   contactInfo: {
     flexDirection: 'row',
@@ -312,13 +315,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.primaryContainer,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   contactAvatarText: {
-    color: '#6B46FF',
+    color: COLORS.primary,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -326,13 +329,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contactName: {
-    color: '#0F172A',
+    color: COLORS.onSurface,
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 2,
   },
   contactPhone: {
-    color: '#6B7280',
+    color: COLORS.placeholder,
     fontSize: 13,
   },
   checkbox: {
@@ -340,14 +343,14 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E6E9EE',
+    borderColor: COLORS.outline,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.surface,
   },
   checkboxSelected: {
-    backgroundColor: '#6B46FF',
-    borderColor: '#6B46FF',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   checkmark: {
     color: '#fff',
@@ -358,11 +361,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 18,
     borderTopWidth: 1,
-    borderTopColor: '#EEF2FF',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: COLORS.primaryContainer,
+    backgroundColor: COLORS.surface,
   },
   selectedCount: {
-    color: '#6B7280',
+    color: COLORS.placeholder,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 12,
@@ -372,10 +375,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#6B46FF',
+    backgroundColor: COLORS.primary,
   },
   continueButtonText: {
-    color: '#fff',
+    color: COLORS.onPrimary,
     fontSize: 16,
     fontWeight: '700',
   },
