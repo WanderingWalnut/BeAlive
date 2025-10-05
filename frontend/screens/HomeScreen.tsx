@@ -8,6 +8,7 @@ import {
   FlatList,
   StatusBar,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -17,6 +18,9 @@ import SocialPostComponent from "../components/SocialPost";
 import BottomNavigation from "../components/BottomNavigation";
 import FloatingButton from "../components/FloatingButton";
 import { useCommitments } from "../contexts/CommitmentsContext";
+import { supabase } from "../lib/supabase";
+import { getFeed, getChallenge } from "../lib/api";
+import type { PostWithCounts, ChallengeOut } from "../lib/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
@@ -35,6 +39,8 @@ export default function HomeScreen({ navigation, route }: Props) {
 
   const [posts, setPosts] = useState<SocialPost[]>([]);
   const [index, setIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [routes] = useState([
     {
       key: "home",
@@ -50,157 +56,172 @@ export default function HomeScreen({ navigation, route }: Props) {
     },
   ]);
 
-  // Debug log for state changes
-  useEffect(() => {
-    console.log("Current posts state:", posts);
-  }, [posts]);
+  // Helper function to convert storage path to public URL
+  const getImageUrl = useCallback(
+    (mediaUrl: string | null): string | undefined => {
+      if (!mediaUrl) return undefined;
 
-  // Load posts from AsyncStorage on component mount
-  useEffect(() => {
-    const loadPosts = async () => {
+      // If it's already a full URL, return as-is
+      if (mediaUrl.startsWith("http://") || mediaUrl.startsWith("https://")) {
+        return mediaUrl;
+      }
+
+      // Otherwise, treat it as a storage path and get the public URL
       try {
-        const storedPosts = await AsyncStorage.getItem("userPosts");
-        if (storedPosts) {
-          setPosts(JSON.parse(storedPosts));
+        const { data } = supabase.storage.from("posts").getPublicUrl(mediaUrl);
+
+        return data?.publicUrl || undefined;
+      } catch (err) {
+        console.error("Error getting image URL:", err);
+        return undefined;
+      }
+    },
+    []
+  );
+
+  // Convert backend PostWithCounts + ChallengeOut to frontend SocialPost format
+  const mapPostToSocialPost = useCallback(
+    async (
+      post: PostWithCounts,
+      challenge: ChallengeOut,
+      accessToken: string
+    ): Promise<SocialPost> => {
+      // Get author profile info
+      let username = "Unknown User";
+      let handle = "@unknown";
+
+      try {
+        // Fetch profile from Supabase profiles table directly
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username, full_name")
+          .eq("user_id", post.author_id)
+          .single();
+
+        if (profile) {
+          username = profile.full_name || profile.username || "Unknown User";
+          handle = profile.username ? `@${profile.username}` : "@unknown";
         }
-      } catch (error) {
-        console.error("Error loading posts:", error);
+      } catch (err) {
+        console.error("Error fetching profile:", err);
       }
-    };
-    loadPosts();
-  }, []);
 
-  // Save posts to AsyncStorage whenever they change
-  useEffect(() => {
-    const savePosts = async () => {
-      try {
-        await AsyncStorage.setItem("userPosts", JSON.stringify(posts));
-      } catch (error) {
-        console.error("Error saving posts:", error);
+      // Convert storage path to public URL if needed
+      const imageUrl = getImageUrl(post.media_url);
+
+      return {
+        id: post.id.toString(),
+        username,
+        handle,
+        timestamp: new Date(post.created_at).toLocaleDateString(),
+        content: challenge.title,
+        image: imageUrl,
+        upvotes: 0, // Not implemented yet
+        downvotes: 0, // Not implemented yet
+        stake: challenge.amount_cents / 100, // Convert cents to dollars
+        poolYes: post.for_amount_cents / 100,
+        poolNo: post.against_amount_cents / 100,
+        participantsYes: post.for_count,
+        participantsNo: post.against_count,
+        expiry:
+          challenge.ends_at ||
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        updates: [],
+      };
+    },
+    [getImageUrl]
+  );
+
+  // Fetch posts from backend API
+  const fetchPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get the current session token
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.log("No session token, user might not be logged in");
+        setPosts([]);
+        setLoading(false);
+        return;
       }
-    };
-    savePosts();
-  }, [posts]);
 
-  // When Home screen receives focus, check route params and apply newChallenge / challengeUpdate
+      // Fetch feed from backend
+      const feedResponse = await getFeed(session.access_token);
+      console.log("Fetched feed:", feedResponse);
+
+      // For each post, fetch the challenge details and map to SocialPost
+      const socialPosts: SocialPost[] = [];
+      for (const post of feedResponse.items) {
+        try {
+          const challenge = await getChallenge(
+            session.access_token,
+            post.challenge_id
+          );
+          const socialPost = await mapPostToSocialPost(
+            post,
+            challenge,
+            session.access_token
+          );
+          socialPosts.push(socialPost);
+        } catch (err) {
+          console.error(`Error processing post ${post.id}:`, err);
+          // Skip this post if we can't fetch challenge details
+        }
+      }
+
+      setPosts(socialPosts);
+    } catch (err) {
+      console.error("Error fetching posts:", err);
+      setError("Failed to load posts. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [mapPostToSocialPost]);
+
+  // When Home screen receives focus, refresh posts from API
   const applyRouteParams = useCallback(async () => {
     try {
-      // First, reload the authoritative posts from AsyncStorage. This ensures
-      // any posts saved by other screens (e.g. ChallengeCreationScreen) are
-      // reflected in the feed immediately when Home receives focus.
-      const stored = await AsyncStorage.getItem("userPosts");
-      const storedPosts: SocialPost[] = stored ? JSON.parse(stored) : [];
+      // Refresh the feed from the API
+      await fetchPosts();
 
-      // Only update local state if storage differs to avoid loops
-      try {
-        const same = JSON.stringify(storedPosts) === JSON.stringify(posts);
-        if (!same) {
-          console.log(
-            "Reloading posts from AsyncStorage on focus:",
-            storedPosts
-          );
-          setPosts(storedPosts);
-        }
-      } catch (e) {
-        // fallback: always set
-        setPosts(storedPosts);
-      }
-
-      // Then process any route params if present (backwards compatible)
+      // Handle route params for backwards compatibility
       const params = route.params || {};
       const { newChallenge, challengeUpdate } = params as any;
 
       if (newChallenge) {
-        console.log(
-          "Applying newChallenge from params (rare case):",
-          newChallenge
-        );
-        const newPost: SocialPost = {
-          id: newChallenge.id,
-          username: `${user.first_name} ${user.last_name}`,
-          handle: `@${user.first_name.toLowerCase()}`,
-          timestamp: "Just now",
-          content: newChallenge.title,
-          image: newChallenge.image,
-          upvotes: 0,
-          downvotes: 0,
-          stake: newChallenge.stake,
-          poolYes: 0,
-          poolNo: 0,
-          participantsYes: 0,
-          participantsNo: 0,
-          expiry: new Date(
-            Date.now() +
-              (newChallenge.expiryDays * 24 + newChallenge.expiryHours) *
-                60 *
-                60 *
-                1000
-          ).toISOString(),
-          updates: [],
-        };
-
-        // prepend if it's not already present
-        const exists = storedPosts.find((p) => p.id === newPost.id);
-        if (!exists) {
-          const updatedPosts = [newPost, ...storedPosts];
-          setPosts(updatedPosts);
-          await AsyncStorage.setItem("userPosts", JSON.stringify(updatedPosts));
-        }
-
+        console.log("New challenge created, feed refreshed");
         navigation.setParams({ newChallenge: undefined } as any);
         Alert.alert(
           "Success!",
           "Your challenge has been created and shared with friends."
         );
-        return;
       }
 
       if (challengeUpdate) {
-        console.log(
-          "Applying challengeUpdate from params (rare case):",
-          challengeUpdate
-        );
-        const updatedPosts = storedPosts.map((post) => {
-          if (post.id === challengeUpdate.challengeId) {
-            return {
-              ...post,
-              updates: [
-                {
-                  id: Date.now().toString(),
-                  content: challengeUpdate.description,
-                  image: challengeUpdate.image,
-                  timestamp: challengeUpdate.timestamp,
-                },
-                ...(post.updates || []),
-              ],
-            };
-          }
-          return post;
-        });
-
-        setPosts(updatedPosts);
-        await AsyncStorage.setItem("userPosts", JSON.stringify(updatedPosts));
-
+        console.log("Challenge updated, feed refreshed");
         navigation.setParams({ challengeUpdate: undefined } as any);
         Alert.alert("Success!", "Your update has been posted.");
-        return;
       }
     } catch (err) {
-      console.error("Error applying route params:", err);
+      console.error("Error refreshing feed:", err);
     }
-  }, [navigation, route.params, posts, user]);
+  }, [navigation, route.params, fetchPosts]);
 
-  // Dev helper: reset AsyncStorage keys we use and clear local state
+  // Dev helper: reset AsyncStorage keys and refresh from API
   const handleResetStorage = async () => {
     try {
       await AsyncStorage.removeItem("userPosts");
       await AsyncStorage.removeItem("userChallenges");
-      setPosts([]);
+      await fetchPosts();
       Alert.alert(
         "Storage Reset",
-        "Cleared userPosts and userChallenges from AsyncStorage."
+        "Cleared local cache and refreshed from server."
       );
-      console.log("AsyncStorage keys userPosts and userChallenges removed");
+      console.log("AsyncStorage cleared and posts refreshed from API");
     } catch (err) {
       console.error("Error clearing AsyncStorage:", err);
       Alert.alert(
@@ -210,12 +231,16 @@ export default function HomeScreen({ navigation, route }: Props) {
     }
   };
 
+  // Load posts on mount
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  // Refresh posts when screen comes into focus
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
       applyRouteParams();
     });
-    // also try applying once when mounting in case params were set while mounted
-    applyRouteParams();
     return unsubscribe;
   }, [navigation, applyRouteParams]);
 
@@ -250,7 +275,7 @@ export default function HomeScreen({ navigation, route }: Props) {
           style: "default",
           onPress: async () => {
             try {
-              // Build updated posts with locked userCommitment so selection persists
+              // Optimistically update UI
               const updatedPosts = posts.map((p) => {
                 if (p.id === postId) {
                   return {
@@ -280,12 +305,7 @@ export default function HomeScreen({ navigation, route }: Props) {
                 return p;
               });
 
-              // Persist the updated posts immediately so selection stays across screens
               setPosts(updatedPosts);
-              await AsyncStorage.setItem(
-                "userPosts",
-                JSON.stringify(updatedPosts)
-              );
 
               // Add to Commits (context)
               const updatedPoolYes =
@@ -334,6 +354,8 @@ export default function HomeScreen({ navigation, route }: Props) {
                 updates: [],
               });
 
+              // TODO: Call backend API to save commitment
+
               // Show success message
               Alert.alert(
                 "Commitment Made!",
@@ -351,6 +373,33 @@ export default function HomeScreen({ navigation, route }: Props) {
         },
       ]
     );
+  };
+
+  const handleTabPress = (key: string) => {
+    if (key === "commitments") {
+      navigation.replace("Commitments");
+    } else if (key === "settings") {
+      navigation.replace("Profile");
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: () => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          });
+        },
+      },
+    ]);
   };
 
   const handleTabPress = (key: string) => {
@@ -395,8 +444,19 @@ export default function HomeScreen({ navigation, route }: Props) {
       <View style={styles.mainContent}>
         {index === 0 && (
           <>
-            {/* header reset moved to top */}
-            {posts.length === 0 ? (
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#6B8AFF" />
+                <Text style={styles.loadingText}>Loading feed...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity style={styles.button} onPress={fetchPosts}>
+                  <Text style={styles.buttonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : posts.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyTitle}>Stand by</Text>
                 <Text style={styles.emptyText}>
@@ -482,6 +542,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  loadingText: {
+    color: "#9CA3AF",
+    fontSize: 15,
+    marginTop: 16,
   },
   emptyContainer: {
     flex: 1,

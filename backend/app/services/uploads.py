@@ -54,11 +54,55 @@ class UploadService:
         if req.content_type:
             headers["Content-Type"] = req.content_type
         if token:
-            # Some HTTP clients require passing token as header for signed upload
-            headers["x-token"] = token  # retained for clients that need it
+            # Signed upload requires Authorization: Bearer <token>
+            headers["Authorization"] = f"Bearer {token}"
 
         # Expiry is managed server-side; we don't get an absolute time from API reliably.
         # Provide a hint (e.g., 2 minutes) for clients.
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=2)
 
         return PresignResponse(upload_url=signed_url, method="POST", headers=headers, path=path, expires_at=expires_at)
+
+    def direct_upload(
+        self,
+        user_id: UUID,
+        post_id: int,
+        content: bytes,
+        filename: Optional[str],
+        content_type: Optional[str],
+    ) -> str:
+        """Upload bytes to Storage using service role, avoiding Storage RLS for clients.
+
+        Validates the post ownership, builds a stable path, uploads the content, and returns the path.
+        """
+        # Validate post ownership
+        post = self.client.table("posts").select("id,author_id").eq("id", post_id).limit(1).execute()
+        row = ((post.data or []) or [None])[0]
+        if not row:
+            raise ValueError("Post not found")
+        if str(row.get("author_id")) != str(user_id):
+            raise PermissionError("Not the post author")
+
+        # Derive extension
+        ext = ""
+        if filename and "." in filename:
+            ext = filename.rsplit(".", 1)[-1].lower()
+        if not ext and content_type:
+            if content_type == "image/png":
+                ext = "png"
+            elif content_type == "image/jpeg" or content_type == "image/jpg":
+                ext = "jpg"
+        if not ext:
+            ext = "bin"
+
+        path = self._build_path(user_id, post_id, ext)
+
+        # Upload using service role client (bypasses RLS)
+        storage = self.client.storage.from_("posts")
+        # storage3 library version in use requires header values as strings
+        opts = {
+            "upsert": "true",
+            "contentType": (content_type or "application/octet-stream"),
+        }
+        storage.upload(path, content, opts)
+        return path
