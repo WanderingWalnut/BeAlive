@@ -27,6 +27,14 @@ from .commitment import (
     CommitmentCreate,
     CommitmentOut,
 )
+from .network import (
+    ImportContactsRequest,
+    ContactMatch,
+    ImportContactsResponse,
+    FollowRequest,
+    NetworkCounts,
+    NetworkListResponse,
+)
 
 __all__ = [
     # common
@@ -54,4 +62,11 @@ __all__ = [
     # commitment
     "CommitmentCreate",
     "CommitmentOut",
+    # network
+    "ImportContactsRequest",
+    "ContactMatch",
+    "ImportContactsResponse",
+    "FollowRequest",
+    "NetworkCounts",
+    "NetworkListResponse",
 ]

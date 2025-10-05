@@ -5,7 +5,7 @@ BeAlive Backend - FastAPI + Supabase
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import health, auth
+from app.api.routes import health, auth, feed, challenges, posts, commitments, network, uploads
 
 app = FastAPI(
     title="BeAlive API",
@@ -27,6 +27,12 @@ app.add_middleware(
 # Include API routes
 app.include_router(health.router, prefix="/api/v1", tags=["health"])
 app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
+app.include_router(feed.router, prefix="/api/v1", tags=["feed"])
+app.include_router(challenges.router, prefix="/api/v1", tags=["challenges"])
+app.include_router(posts.router, prefix="/api/v1", tags=["posts"])
+app.include_router(commitments.router, prefix="/api/v1", tags=["commitments"])
+app.include_router(network.router, prefix="/api/v1", tags=["network"])
+app.include_router(uploads.router, prefix="/api/v1", tags=["uploads"])
 
 @app.get("/")
 async def root():

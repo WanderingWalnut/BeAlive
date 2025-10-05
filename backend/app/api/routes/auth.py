@@ -5,12 +5,14 @@ Authentication endpoints
 import json
 import urllib.request
 from typing import Any, Dict, Optional
-
 from fastapi import APIRouter, HTTPException, Header, status
 
 from app.core.config import settings
 from app.services.supabase import get_supabase_client
-from app.models import ProfileOut, ProfileUpdate
+from app.models import (
+    ProfileOut,
+    ProfileUpdate,
+)
 
 
 def _extract_bearer_token(authorization: Optional[str]) -> str:
@@ -112,3 +114,6 @@ async def update_current_user_profile(body: ProfileUpdate, authorization: Option
     if not profile:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update profile")
     return profile  # type: ignore[return-value]
+
+
+# Network endpoints have been moved to routes/network.py
