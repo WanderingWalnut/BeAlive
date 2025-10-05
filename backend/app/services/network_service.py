@@ -1,142 +1,127 @@
+# app/services/network_service.py
 from __future__ import annotations
-
-from typing import Iterable, List, Tuple
+from typing import List, Dict, Any
 from uuid import UUID
-
-from pydantic import TypeAdapter
-
-from app.models import (
-    ChallengeStats,
-    CommitmentOut,
-    ConnectionOut,
-    ContactMatch,
-    ImportContactsResponse,
-    NetworkListResponse,
-    NetworkCounts,
-    ProfileOut,
-)
+import re
 from .supabase import get_supabase_client
-from .profile_service import ProfileService
-
 
 class NetworkService:
-    """Encapsulates network-related operations (contacts import, follow/unfollow, listing).
-
-    Notes:
-    - Follows are represented via the `connections` table with status='accepted'.
-    - Unfollow removes the directed connection row (requester -> addressee).
-    - Listing uses directed semantics for followers/following counts.
-    - Contact import currently matches by email via Supabase Auth Admin (naive scan),
-      then hydrates profiles from public.profiles.
-    """
-
     def __init__(self) -> None:
         self.client = get_supabase_client()
-        self.profiles = ProfileService()
 
-    # -------- Contacts Import --------
-    def import_contacts(self, emails: List[str], phones: List[str]) -> ImportContactsResponse:
-        """Match provided emails/phones to existing users.
-
-        Email matching uses the Auth admin list (requires service role credentials). For now,
-        we perform a simple scan over pages and filter locally by provided emails.
-        Phone matching is not implemented due to absence of phone field in profiles.
+    def _normalize_phones(self, phones: List[str]) -> List[str]:
         """
-        emails_set = {e.lower() for e in emails if e}
-        matches: List[ContactMatch] = []
+        Normalize to a US-like E.164 form:
+        - strip non-digits except '+'
+        - if 10 digits -> prefix '1'
+        - if 11 digits starting with '1' -> keep
+        - if starts with '+' -> keep as-is
+        """
+        norm: List[str] = []
+        for raw in phones or []:
+            if not raw:
+                continue
+            s = re.sub(r"[^0-9+]", "", raw)
+            if s.startswith("+"):
+                norm.append(s[1:])  # store without '+', because your DB has no '+'
+            else:
+                digits = re.sub(r"[^0-9]", "", s)
+                if len(digits) == 10:          # e.g. 8257359842
+                    norm.append("1" + digits)  # -> 18257359842
+                elif len(digits) == 11 and digits.startswith("1"):
+                    norm.append(digits)        # already 1XXXXXXXXXX
+                else:
+                    # keep as-is just in case
+                    norm.append(digits)
+        # de-dupe and drop empties
+        return [x for x in sorted(set(norm)) if x]
 
-        if emails_set:
-            # Naive admin scan (replace with better query or RPC when available)
-            admin = self.client.auth.admin
-            page = 1
-            page_size = 100
-            found: List[Tuple[UUID, str]] = []
-            while True:
-                users_page = admin.list_users(page=page, per_page=page_size)
-                data = getattr(users_page, "data", None) or getattr(users_page, "users", None) or []
-                if not data:
-                    break
-                for u in data:
-                    email = (u.get("email") or "").lower()
-                    if email in emails_set:
-                        uid = UUID(u["id"])  # Supabase returns string UUID
-                        found.append((uid, email))
-                if len(data) < page_size:
-                    break
-                page += 1
+    def import_contacts(self, emails: List[str], phones: List[str]) -> Dict[str, Any]:
+        """
+        Match by phone using the profiles_with_auth view.
+        Tries exact E.164-like match AND a 'last 10 digits' fallback.
+        """
+        norm = self._normalize_phones(phones)
 
-            # Hydrate profile info
-            ids = [uid for uid, _ in found]
-            profile_map = self.profiles.get_profiles_by_ids(ids)
-            for uid, email in found:
-                matches.append(
-                    ContactMatch(user_id=uid, email=email, profile=profile_map.get(uid))
-                )
+        # last-10 digits variants for fuzzy OR matching
+        last10 = sorted({p[-10:] for p in norm if len(p) >= 10})
 
-        # Phones: not implemented (no phone in schema); keep placeholder for future.
+        print("[network] incoming phones:", phones)
+        print("[network] normalized phones:", norm, "last10:", last10)
 
-        return ImportContactsResponse(matches=matches)
+        matches: List[Dict[str, Any]] = []
+        if not norm and not last10:
+            return {"matches": matches}
 
-    # -------- Follow / Unfollow --------
-    def follow(self, requester_id: UUID, target_user_id: UUID) -> ConnectionOut:
-        """Create an accepted connection requester -> target. Idempotent upsert behavior."""
+        q = (
+            self.client
+            .table("profiles_with_auth")
+            .select("user_id,username,full_name,avatar_url,phone_e164")
+        )
+
+        # Prefer exact first
+        if norm:
+            q = q.in_("phone_e164", norm)
+
+        # If you want to ALWAYS include the last10 fallback, use an OR:
+        # (PostgREST OR filter must be a single string)
+        if last10:
+            or_clause = ",".join([f"phone_e164.ilike.*{d}" for d in last10])
+            q = q.or_(or_clause)
+
+        resp = q.execute()
+        rows = resp.data or []
+        for row in rows:
+            matches.append({
+                "user_id": row["user_id"],
+                "username": row.get("username"),
+                "full_name": row.get("full_name"),
+                "avatar_url": row.get("avatar_url"),
+                "phone_e164": row.get("phone_e164"),
+            })
+
+        print("[network] matched rows:", matches)
+        return {"matches": matches}
+
+    def follow(self, requester_id: UUID, target_user_id: UUID):
+        """Create/ensure an accepted connection (idempotent)."""
         payload = {
             "requester_id": str(requester_id),
             "addressee_id": str(target_user_id),
             "status": "accepted",
         }
-        # Upsert-like behavior: try insert; if conflict, update status to accepted
-        resp = (
+
+        # Some supabase-py versions don't support .select() after upsert.
+        up = (
             self.client.table("connections")
             .upsert(payload, on_conflict="requester_id,addressee_id")
-            .select("*")
             .execute()
         )
-        row = (resp.data or [])[0]
-        return TypeAdapter(ConnectionOut).validate_python(row)
 
-    def unfollow(self, requester_id: UUID, target_user_id: UUID) -> None:
-        """Remove directed connection requester -> target if it exists."""
-        (
+        row = (getattr(up, "data", None) or [])
+        if row:
+            return row[0]
+
+        # If upsert doesn't return a row, read it back
+        sel = (
             self.client.table("connections")
-            .delete()
+            .select("*")
             .eq("requester_id", str(requester_id))
             .eq("addressee_id", str(target_user_id))
+            .limit(1)
             .execute()
         )
+        data = getattr(sel, "data", None) or []
+        return (data[0] if data else payload)
 
-    # -------- List Network --------
-    def list_network(self, user_id: UUID) -> NetworkListResponse:
-        """Return followers and following lists with counts (profiles hydrated)."""
-        # Following: I -> others
-        following_rows = (
-            self.client.table("connections")
-            .select("addressee_id")
-            .eq("requester_id", str(user_id))
-            .eq("status", "accepted")
-            .execute()
-        ).data or []
-        following_ids = [UUID(r["addressee_id"]) for r in following_rows]
-
-        # Followers: others -> me
-        followers_rows = (
-            self.client.table("connections")
-            .select("requester_id")
-            .eq("addressee_id", str(user_id))
-            .eq("status", "accepted")
-            .execute()
-        ).data or []
-        followers_ids = [UUID(r["requester_id"]) for r in followers_rows]
-
-        # Hydrate profiles
-        profile_map = self.profiles.get_profiles_by_ids(set(following_ids + followers_ids))
-        following_profiles = [p for uid in following_ids if (p := profile_map.get(uid))]
-        followers_profiles = [p for uid in followers_ids if (p := profile_map.get(uid))]
-
-        counts = NetworkCounts(followers=len(followers_profiles), following=len(following_profiles))
-        return NetworkListResponse(
-            followers=followers_profiles,
-            following=following_profiles,
-            counts=counts,
-        )
-
+    def import_and_follow(self, requester_id: UUID, emails: List[str], phones: List[str]) -> Dict[str, Any]:
+        result = self.import_contacts(emails, phones)
+        matched = result.get("matches", [])
+        followed = 0
+        for m in matched:
+            uid = UUID(m["user_id"])
+            if uid == requester_id:
+                continue
+            self.follow(requester_id, uid)
+            followed += 1
+        return {"matched": len(matched), "followed": followed, "matches": matched}
