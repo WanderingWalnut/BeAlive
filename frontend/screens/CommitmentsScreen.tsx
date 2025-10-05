@@ -168,11 +168,11 @@ export default function CommitmentsScreen({ navigation }: Props) {
 
   const handleTabPress = (key: string) => {
     if (key === 'home') {
-      navigation.navigate('Home');
+      navigation.replace('Home');
     } else if (key === 'create') {
       navigation.navigate('ChallengeCreation');
     } else if (key === 'settings') {
-      navigation.navigate('Profile');
+      navigation.replace('Profile');
     }
   };
 

@@ -138,11 +138,11 @@ export default function HomeScreen({ navigation, route }: Props) {
 
   const handleTabPress = (key: string) => {
     if (key === 'settings') {
-      navigation.navigate('Profile');
+      navigation.replace('Profile');
     } else if (key === 'create') {
       navigation.navigate('ChallengeCreation');
     } else if (key === 'commitments') {
-      navigation.navigate('Commitments');
+      navigation.replace('Commitments');
     }
   };
 

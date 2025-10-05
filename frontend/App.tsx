@@ -58,7 +58,15 @@ export default function App() {
   return (
     <PaperProvider theme={theme}>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
+        <Stack.Navigator 
+          initialRouteName="Splash" 
+          screenOptions={{ 
+            headerShown: false,
+            animation: 'none',
+            animationTypeForReplace: 'push',
+            gestureEnabled: false,
+          }}
+        >
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />

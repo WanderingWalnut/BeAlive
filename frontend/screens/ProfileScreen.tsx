@@ -68,9 +68,9 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const handleTabPress = (key: string) => {
     if (key === 'home') {
-      navigation.navigate('Home');
+      navigation.replace('Home');
     } else if (key === 'commitments') {
-      navigation.navigate('Commitments');
+      navigation.replace('Commitments');
     } else if (key === 'create') {
       navigation.navigate('ChallengeCreation');
     }
