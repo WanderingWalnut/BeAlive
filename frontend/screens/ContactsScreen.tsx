@@ -126,10 +126,15 @@ export default function ContactsScreen({ navigation, route }: Props) {
     const selectedContacts = contacts.filter(contact => contact.selected);
     // Persist selections
     AsyncStorage.setItem('selectedContacts', JSON.stringify(selectedContacts.map(c => ({ name: c.name, phone: c.phone }))));
-    navigation.navigate('SharingSettings', {
-      phone,
-      username,
-      selectedContacts,
+    // We've removed SharingSettings; navigate to Home with user info instead
+    navigation.navigate('Home', {
+      user: {
+        id: 'new-user',
+        phone_number: phone,
+        first_name: username,
+        last_name: '',
+        created_at: new Date().toISOString(),
+      }
     });
   };
 

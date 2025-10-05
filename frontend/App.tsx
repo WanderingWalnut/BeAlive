@@ -12,7 +12,6 @@ import OTPScreen from "./screens/OTPScreen";
 import ProfileSetup from "./screens/ProfileSetup";
 import UsernameScreen from "./screens/UsernameScreen";
 import ContactsScreen from "./screens/ContactsScreen";
-import SharingSettingsScreen from "./screens/SharingSettingsScreen";
 import HomeScreen from "./screens/HomeScreen";
 import ChallengeCreationScreen from "./screens/ChallengeCreationScreen";
 import CommitmentsScreen from "./screens/CommitmentsScreen";
@@ -34,11 +33,6 @@ export type RootStackParamList = {
   Contacts: {
     phone: string;
     username: string;
-  };
-  SharingSettings: {
-    phone: string;
-    username: string;
-    selectedContacts?: any[];
   };
   Home: {
     user?: {
@@ -95,10 +89,6 @@ export default function App() {
               <Stack.Screen name="ProfileSetup" component={ProfileSetup} />
               <Stack.Screen name="Username" component={UsernameScreen} />
               <Stack.Screen name="Contacts" component={ContactsScreen} />
-              <Stack.Screen
-                name="SharingSettings"
-                component={SharingSettingsScreen}
-              />
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen
                 name="ChallengeCreation"
