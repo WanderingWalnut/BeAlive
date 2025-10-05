@@ -16,6 +16,7 @@ import {
   Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SocialPost } from '../services/socialData';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import { IconButton } from 'react-native-paper';
@@ -30,6 +31,33 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
   const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
   // Track user created challenges
   const [userChallenges, setUserChallenges] = useState<Array<{id: string, title: string}>>([]);
+  
+  // Load user challenges from AsyncStorage
+  useEffect(() => {
+    const loadUserChallenges = async () => {
+      try {
+        const storedChallenges = await AsyncStorage.getItem('userChallenges');
+        if (storedChallenges) {
+          setUserChallenges(JSON.parse(storedChallenges));
+        }
+      } catch (error) {
+        console.error('Error loading challenges:', error);
+      }
+    };
+    loadUserChallenges();
+  }, []);
+
+  // Save user challenges to AsyncStorage whenever they change
+  useEffect(() => {
+    const saveChallenges = async () => {
+      try {
+        await AsyncStorage.setItem('userChallenges', JSON.stringify(userChallenges));
+      } catch (error) {
+        console.error('Error saving challenges:', error);
+      }
+    };
+    saveChallenges();
+  }, [userChallenges]);
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -78,13 +106,43 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
         const updatedChallenges = [...userChallenges, { id: challengeId, title: title.trim() }];
         setUserChallenges(updatedChallenges);
 
-        // Navigate back to Home with the new challenge
-        navigation.navigate('Home', {
-          newChallenge: {
-            ...newChallenge,
-            id: challengeId,
-          },
-        });
+        const challengeData = {
+          ...newChallenge,
+          id: challengeId,
+        };
+        console.log('Persisting new challenge to AsyncStorage:', challengeData); // Debug log
+
+        // Build a SocialPost to store in userPosts so Home can read it
+        const newPost: SocialPost = {
+          id: challengeId,
+          username: 'You',
+          handle: '@you',
+          timestamp: 'Just now',
+          content: challengeData.title,
+          image: challengeData.image,
+          upvotes: 0,
+          downvotes: 0,
+          stake: challengeData.stake,
+          poolYes: 0,
+          poolNo: 0,
+          participantsYes: 0,
+          participantsNo: 0,
+          expiry: new Date(Date.now() + (challengeData.expiryDays * 24 + challengeData.expiryHours) * 60 * 60 * 1000).toISOString(),
+          updates: [],
+        };
+
+        try {
+          const stored = await AsyncStorage.getItem('userPosts');
+          const arr = stored ? JSON.parse(stored) : [];
+          const updated = [newPost, ...arr];
+          await AsyncStorage.setItem('userPosts', JSON.stringify(updated));
+          console.log('Saved new post to AsyncStorage:', newPost);
+        } catch (err) {
+          console.error('Error saving new post to AsyncStorage:', err);
+        }
+
+  // Navigate back to Home (no params needed)
+  navigation.navigate('Home' as any, {} as any);
       } else {
         // Handle challenge update
         const selectedChallenge = userChallenges.find(c => c.id === selectedChallengeId);
@@ -101,10 +159,36 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
           timestamp: new Date().toISOString(),
         };
 
-        // Navigate back to Home with the update
-        navigation.navigate('Home', {
-          challengeUpdate: update,
-        });
+        console.log('Persisting update to AsyncStorage:', update); // Debug log
+
+        try {
+          const stored = await AsyncStorage.getItem('userPosts');
+          const arr = stored ? JSON.parse(stored) : [];
+          const updated = arr.map((p: SocialPost) => {
+            if (p.id === selectedChallengeId) {
+              return {
+                ...p,
+                updates: [
+                  {
+                    id: Date.now().toString(),
+                    content: update.description,
+                    image: update.image,
+                    timestamp: update.timestamp,
+                  },
+                  ...(p.updates || []),
+                ],
+              };
+            }
+            return p;
+          });
+          await AsyncStorage.setItem('userPosts', JSON.stringify(updated));
+          console.log('Saved updated posts to AsyncStorage');
+        } catch (err) {
+          console.error('Error saving post update to AsyncStorage:', err);
+        }
+
+  // Navigate back to Home
+  navigation.navigate('Home' as any, {} as any);
 
         // Clear the form
         setDescription('');

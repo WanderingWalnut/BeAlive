@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,10 @@ import {
   StatusBar,
   TouchableOpacity,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
-import { SocialPost, mockSocialPosts } from '../services/socialData';
+import { SocialPost } from '../services/socialData';
 import SocialPostComponent from '../components/SocialPost';
 import BottomNavigation from '../components/BottomNavigation';
 import FloatingButton from '../components/FloatingButton';
@@ -20,7 +21,7 @@ import { useCommitments } from '../contexts/CommitmentsContext';
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export default function HomeScreen({ navigation, route }: Props) {
-  const { user: routeUser, newChallenge, challengeUpdate } = route.params || {};
+  const { user: routeUser } = route.params || {};
   const { addCommitment, hasCommitment } = useCommitments();
   
   // Create a mock user if none provided (for navigation from other screens)
@@ -32,45 +33,106 @@ export default function HomeScreen({ navigation, route }: Props) {
     created_at: new Date().toISOString(),
   };
   
-  const [posts, setPosts] = useState<SocialPost[]>(mockSocialPosts);
+  const [posts, setPosts] = useState<SocialPost[]>([]);
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'home', title: 'Home', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
     { key: 'settings', title: 'Settings', focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
   ]);
 
-  // Handle new challenge creation and updates
+  // Debug log for state changes
   useEffect(() => {
-    if (newChallenge) {
-      const newPost: SocialPost = {
-        id: newChallenge.id,
-        username: `${user.first_name} ${user.last_name}`,
-        handle: `@${user.first_name.toLowerCase()}`,
-        timestamp: 'Just now',
-        content: newChallenge.title,
-        image: newChallenge.image,
-        upvotes: 0,
-        downvotes: 0,
-        stake: newChallenge.stake,
-        poolYes: 0,
-        poolNo: 0,
-        participantsYes: 0,
-        participantsNo: 0,
-        expiry: new Date(Date.now() + (newChallenge.expiryDays * 24 + newChallenge.expiryHours) * 60 * 60 * 1000).toISOString(),
-        updates: [],
-      };
+    console.log('Current posts state:', posts);
+  }, [posts]);
 
-      setPosts(prevPosts => [newPost, ...prevPosts]);
-      
-      // Clear the newChallenge from route params
-      navigation.setParams({ newChallenge: undefined } as any);
-      
-      Alert.alert('Success!', 'Your challenge has been created and shared with friends.');
-    }
+  // Load posts from AsyncStorage on component mount
+  useEffect(() => {
+    const loadPosts = async () => {
+      try {
+        const storedPosts = await AsyncStorage.getItem('userPosts');
+        if (storedPosts) {
+          setPosts(JSON.parse(storedPosts));
+        }
+      } catch (error) {
+        console.error('Error loading posts:', error);
+      }
+    };
+    loadPosts();
+  }, []);
 
-    if (challengeUpdate) {
-      setPosts(prevPosts => {
-        return prevPosts.map(post => {
+  // Save posts to AsyncStorage whenever they change
+  useEffect(() => {
+    const savePosts = async () => {
+      try {
+        await AsyncStorage.setItem('userPosts', JSON.stringify(posts));
+      } catch (error) {
+        console.error('Error saving posts:', error);
+      }
+    };
+    savePosts();
+  }, [posts]);
+
+  // When Home screen receives focus, check route params and apply newChallenge / challengeUpdate
+  const applyRouteParams = useCallback(async () => {
+    try {
+      // First, reload the authoritative posts from AsyncStorage. This ensures
+      // any posts saved by other screens (e.g. ChallengeCreationScreen) are
+      // reflected in the feed immediately when Home receives focus.
+      const stored = await AsyncStorage.getItem('userPosts');
+      const storedPosts: SocialPost[] = stored ? JSON.parse(stored) : [];
+
+      // Only update local state if storage differs to avoid loops
+      try {
+        const same = JSON.stringify(storedPosts) === JSON.stringify(posts);
+        if (!same) {
+          console.log('Reloading posts from AsyncStorage on focus:', storedPosts);
+          setPosts(storedPosts);
+        }
+      } catch (e) {
+        // fallback: always set
+        setPosts(storedPosts);
+      }
+
+      // Then process any route params if present (backwards compatible)
+      const params = route.params || {};
+      const { newChallenge, challengeUpdate } = params as any;
+
+      if (newChallenge) {
+        console.log('Applying newChallenge from params (rare case):', newChallenge);
+        const newPost: SocialPost = {
+          id: newChallenge.id,
+          username: `${user.first_name} ${user.last_name}`,
+          handle: `@${user.first_name.toLowerCase()}`,
+          timestamp: 'Just now',
+          content: newChallenge.title,
+          image: newChallenge.image,
+          upvotes: 0,
+          downvotes: 0,
+          stake: newChallenge.stake,
+          poolYes: 0,
+          poolNo: 0,
+          participantsYes: 0,
+          participantsNo: 0,
+          expiry: new Date(Date.now() + (newChallenge.expiryDays * 24 + newChallenge.expiryHours) * 60 * 60 * 1000).toISOString(),
+          updates: [],
+        };
+
+        // prepend if it's not already present
+        const exists = storedPosts.find(p => p.id === newPost.id);
+        if (!exists) {
+          const updatedPosts = [newPost, ...storedPosts];
+          setPosts(updatedPosts);
+          await AsyncStorage.setItem('userPosts', JSON.stringify(updatedPosts));
+        }
+
+        navigation.setParams({ newChallenge: undefined } as any);
+        Alert.alert('Success!', 'Your challenge has been created and shared with friends.');
+        return;
+      }
+
+      if (challengeUpdate) {
+        console.log('Applying challengeUpdate from params (rare case):', challengeUpdate);
+        const updatedPosts = storedPosts.map(post => {
           if (post.id === challengeUpdate.challengeId) {
             return {
               ...post,
@@ -87,14 +149,27 @@ export default function HomeScreen({ navigation, route }: Props) {
           }
           return post;
         });
-      });
 
-      // Clear the challengeUpdate from route params
-      navigation.setParams({ challengeUpdate: undefined } as any);
-      
-      Alert.alert('Success!', 'Your update has been posted.');
+        setPosts(updatedPosts);
+        await AsyncStorage.setItem('userPosts', JSON.stringify(updatedPosts));
+
+        navigation.setParams({ challengeUpdate: undefined } as any);
+        Alert.alert('Success!', 'Your update has been posted.');
+        return;
+      }
+    } catch (err) {
+      console.error('Error applying route params:', err);
     }
-  }, [newChallenge, challengeUpdate]);
+  }, [navigation, route.params, posts, user]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      applyRouteParams();
+    });
+    // also try applying once when mounting in case params were set while mounted
+    applyRouteParams();
+    return unsubscribe;
+  }, [navigation, applyRouteParams]);
 
   const handleCommit = (postId: string, choice: 'yes' | 'no') => {
     const post = posts.find(p => p.id === postId);
