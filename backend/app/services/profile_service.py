@@ -57,24 +57,24 @@ class ProfileService:
         if avatar_url is not None:
             upsert_data["avatar_url"] = avatar_url
 
-        resp = (
+        # Upsert returns a sync builder; execute it first
+        upsert_resp = (
             self.client
             .table("profiles")
             .upsert(upsert_data, on_conflict="user_id")
+            .execute()
+        )
+        
+        # Then fetch the row back
+        fetch = (
+            self.client.table("profiles")
             .select("*")
             .eq("user_id", str(user_id))
             .limit(1)
             .execute()
         )
-        rows = getattr(resp, "data", None) or []
+        rows = getattr(fetch, "data", None) or []
         row = rows[0] if isinstance(rows, list) and rows else None
-        if not row:
-            # Try fetch fresh in rare cases where select didn't return
-            fetch = (
-                self.client.table("profiles").select("*").eq("user_id", str(user_id)).limit(1).execute()
-            )
-            rows2 = getattr(fetch, "data", None) or []
-            row = rows2[0] if isinstance(rows2, list) and rows2 else None
         adapter = TypeAdapter(ProfileOut)
         return adapter.validate_python(row)
 

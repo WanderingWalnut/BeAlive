@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,40 @@ import { RootStackParamList } from '../App';
 import { Card, Button } from 'react-native-paper';
 import BottomNavigation from '../components/BottomNavigation';
 import FloatingButton from '../components/FloatingButton';
+import { useMe } from '../hooks/useMe';
+import { supabase } from '../lib/supabase';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
 export default function ProfileScreen({ navigation }: Props) {
   const [index, setIndex] = useState(2); // Start with settings tab active
+  const { me } = useMe();
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const initial = (me?.username?.[0] || 'U').toUpperCase();
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAvatar() {
+      const key = me?.avatar_url as string | undefined;
+      if (!key) {
+        if (!cancelled) setAvatarUri(null);
+        return;
+      }
+      try {
+        const { data, error } = await supabase.storage
+          .from('posts')
+          .createSignedUrl(key, 60 * 10);
+        if (error) throw error;
+        if (!cancelled) setAvatarUri(data?.signedUrl ?? null);
+      } catch {
+        if (!cancelled) setAvatarUri(null);
+      }
+    }
+    loadAvatar();
+    return () => {
+      cancelled = true;
+    };
+  }, [me?.avatar_url]);
 
   const handleTabPress = (key: string) => {
     if (key === 'home') {
@@ -30,13 +59,11 @@ export default function ProfileScreen({ navigation }: Props) {
   };
 
   const user = {
-    id: 'dev-user',
-    username: 'DevUser',
-    handle: '@devuser',
-    profilePicture: 'https://i.pravatar.cc/150?u=devuser',
-    posts: 12,
-    following: 150,
-    followers: 300,
+    username: me?.username || 'User',
+    handle: me?.username ? `@${me.username}` : '',
+    posts: 0,
+    following: 0,
+    followers: 0,
   };
 
   const handleEditProfile = () => {
@@ -82,9 +109,19 @@ export default function ProfileScreen({ navigation }: Props) {
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
-          <Image source={{ uri: user.profilePicture }} style={styles.profilePicture} />
-          <Text style={styles.username}>{user.username}</Text>
-          <Text style={styles.handle}>{user.handle}</Text>
+          {avatarUri ? (
+            <Image
+              source={{ uri: avatarUri }}
+              style={styles.profilePicture}
+              onError={() => setAvatarUri(null)}
+            />
+          ) : (
+            <View style={[styles.profilePicture, styles.avatarFallback]}> 
+              <Text style={styles.avatarInitials}>{initial}</Text>
+            </View>
+          )}
+          <Text style={styles.username}>{me?.full_name || user.username}</Text>
+          {user.handle ? <Text style={styles.handle}>{user.handle}</Text> : null}
 
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
@@ -185,6 +222,16 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 3,
     borderColor: '#6B8AFF',
+  },
+  avatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E5E7EB',
+  },
+  avatarInitials: {
+    color: '#4B5563',
+    fontSize: 28,
+    fontWeight: '800',
   },
   username: {
     color: '#1A1D2E',

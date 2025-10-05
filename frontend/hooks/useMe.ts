@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../providers/AuthProvider';
-import { getMe, updateMe } from '../lib/api';
+import { getMe, updateMe, createProfile } from '../lib/api';
 
 export function useMe() {
   const { accessToken } = useAuth();
@@ -29,11 +29,18 @@ export function useMe() {
     return res;
   }, [accessToken]);
 
+  const create = useCallback(async (body: { username?: string; full_name?: string; avatar_url?: string }) => {
+    if (!accessToken) throw new Error('Not authenticated');
+    const res = await createProfile(accessToken, body);
+    setMe(res);
+    return res;
+  }, [accessToken]);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  return { me, loading, error, refresh, save };
+  return { me, loading, error, refresh, save, create };
 }
 
 

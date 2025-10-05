@@ -1,4 +1,8 @@
-const API_URL = process.env.EXPO_PUBLIC_API_URL as string;
+// Prefer explicit EXPO_PUBLIC_API_URL. Fallback to local dev defaults.
+let API_URL = process.env.EXPO_PUBLIC_API_URL as string | undefined;
+if (!API_URL || API_URL.trim().length === 0) {
+  API_URL = 'http://127.0.0.1:8000/api/v1';
+}
 
 // Debug: log API base once at startup
 // Note: do not log secrets; this is safe
@@ -38,4 +42,16 @@ export async function updateMe(accessToken: string, body: MeUpdate) {
   return r.json();
 }
 
+export async function createProfile(accessToken: string, body: MeUpdate) {
+  const r = await fetch(`${API_URL}/profiles`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
 
