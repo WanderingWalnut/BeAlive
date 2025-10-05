@@ -31,6 +31,7 @@ from .post import (
 from .commitment import (
     CommitmentCreate,
     CommitmentOut,
+    CommitmentRequest,
 )
 from .network import (
     ImportContactsRequest,
@@ -79,6 +80,7 @@ __all__ = [
     # commitment
     "CommitmentCreate",
     "CommitmentOut",
+    "CommitmentRequest",
     # network
     "ImportContactsRequest",
     "ContactMatch",
