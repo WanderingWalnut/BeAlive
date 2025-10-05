@@ -46,7 +46,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
   const [index, setIndex] = useState(1); // Start with commitments tab active
   const [routes] = useState([
     { key: 'home', title: 'Home', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
-    { key: 'commitments', title: 'Bets', focusedIcon: 'chart-line', unfocusedIcon: 'chart-line' },
+    { key: 'commitments', title: 'Investments', focusedIcon: 'chart-line', unfocusedIcon: 'chart-line' },
     { key: 'create', title: 'Create', focusedIcon: 'plus', unfocusedIcon: 'plus' },
     { key: 'settings', title: 'Settings', focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
   ]);
@@ -56,12 +56,12 @@ export default function CommitmentsScreen({ navigation }: Props) {
     {
       id: '1',
       challengeTitle: 'Will I go to the gym 5 days this week?',
-      creator: {
-        username: 'Alex Chen',
+      creator: { 
+        username: 'Alex Chen', 
         handle: '@alexchen',
-        avatar: 'https://i.pravatar.cc/150?u=alexchen',
+        avatar: 'https://i.pravatar.cc/150?u=alexchen' 
       },
-      expiry: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      expiry: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
       userChoice: 'yes',
       stake: 10,
       poolYes: 45,
@@ -69,55 +69,55 @@ export default function CommitmentsScreen({ navigation }: Props) {
       participantsYes: 3,
       participantsNo: 2,
       expectedPayout: 15,
-      isExpired: false,
       updates: [
-        {
-          id: '1',
-          content: 'Day 1: Hit the gym for 45 minutes',
-          image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=300&h=200&fit=crop',
-          timestamp: '2h ago',
+        { 
+          id: 'u1', 
+          content: 'Day 1: Hit the gym!', 
+          timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() 
         },
-        {
-          id: '2',
-          content: 'Day 2: Another solid workout session',
-          timestamp: '1d ago',
+        { 
+          id: 'u2', 
+          content: 'Day 2: Feeling good!', 
+          image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=200&h=150&fit=crop',
+          timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() 
         },
       ],
+      isExpired: false,
     },
     {
       id: '2',
       challengeTitle: 'Will I complete my coding bootcamp project by Friday?',
-      creator: {
-        username: 'Sarah Kim',
+      creator: { 
+        username: 'Sarah Kim', 
         handle: '@sarahk',
-        avatar: 'https://i.pravatar.cc/150?u=sarahk',
+        avatar: 'https://i.pravatar.cc/150?u=sarahk' 
       },
-      expiry: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+      expiry: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
       userChoice: 'no',
       stake: 15,
       poolYes: 60,
       poolNo: 30,
       participantsYes: 4,
       participantsNo: 2,
-      expectedPayout: 22.5,
-      isExpired: false,
+      expectedPayout: 15,
       updates: [
-        {
-          id: '1',
-          content: 'Making good progress on the frontend',
-          timestamp: '4h ago',
+        { 
+          id: 'u3', 
+          content: 'Project started!', 
+          timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() 
         },
       ],
+      isExpired: false,
     },
     {
       id: '3',
       challengeTitle: 'Will I read 50 pages of my book this week?',
-      creator: {
-        username: 'Emma Davis',
+      creator: { 
+        username: 'Emma Davis', 
         handle: '@emmad',
-        avatar: 'https://i.pravatar.cc/150?u=emmad',
+        avatar: 'https://i.pravatar.cc/150?u=emmad' 
       },
-      expiry: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // Expired
+      expiry: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // Expired
       userChoice: 'yes',
       stake: 12,
       poolYes: 48,
@@ -125,15 +125,20 @@ export default function CommitmentsScreen({ navigation }: Props) {
       participantsYes: 4,
       participantsNo: 2,
       expectedPayout: 18,
-      isExpired: true,
-      outcome: 'yes',
       updates: [
-        {
-          id: '1',
-          content: 'Finished the book! 67 pages read',
-          timestamp: '2d ago',
+        { 
+          id: 'u4', 
+          content: 'Finished chapter 1!', 
+          timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() 
+        },
+        { 
+          id: 'u5', 
+          content: 'Reached 50 pages!', 
+          timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() 
         },
       ],
+      isExpired: true,
+      outcome: 'yes',
     },
   ];
 
@@ -141,17 +146,17 @@ export default function CommitmentsScreen({ navigation }: Props) {
     const now = new Date();
     const expiryDate = new Date(expiry);
     const diffMs = expiryDate.getTime() - now.getTime();
-    
+
     if (diffMs <= 0) return 'Expired';
-    
+
     const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
+
     if (days > 0) return `${days}d ${hours}h left`;
     return `${hours}h left`;
   };
 
-  const toggleExpanded = (id: string) => {
+  const toggleExpand = (id: string) => {
     const newExpanded = new Set(expandedCards);
     if (newExpanded.has(id)) {
       newExpanded.delete(id);
@@ -175,126 +180,123 @@ export default function CommitmentsScreen({ navigation }: Props) {
     const isExpanded = expandedCards.has(item.id);
     const timeRemaining = formatTimeRemaining(item.expiry);
     const totalPool = item.poolYes + item.poolNo;
-    const userPool = item.userChoice === 'yes' ? item.poolYes : item.poolNo;
-    const userParticipants = item.userChoice === 'yes' ? item.participantsYes : item.participantsNo;
-    const userPercent = totalPool > 0 ? Math.round((userPool / totalPool) * 100) : 50;
+    const userSidePool = item.userChoice === 'yes' ? item.poolYes : item.poolNo;
+    const userSideParticipants = item.userChoice === 'yes' ? item.participantsYes : item.participantsNo;
+    const otherSidePool = item.userChoice === 'yes' ? item.poolNo : item.poolYes;
+    const otherSideParticipants = item.userChoice === 'yes' ? item.participantsNo : item.participantsYes;
+
+    const userSidePercent = totalPool > 0 ? Math.round((userSidePool / totalPool) * 100) : 50;
+    const otherSidePercent = totalPool > 0 ? Math.round((otherSidePool / totalPool) * 100) : 50;
+
+    const expectedPayout = userSideParticipants > 0 ? (totalPool / userSideParticipants) : 0;
+    const hasExpired = timeRemaining === 'Expired';
+    const userWon = hasExpired && item.outcome === item.userChoice;
 
     return (
       <View style={styles.card}>
-        {/* Header */}
+        {/* Card Header */}
         <View style={styles.cardHeader}>
-          <View style={styles.creatorInfo}>
-            <Image source={{ uri: item.creator.avatar }} style={styles.creatorAvatar} />
-            <View style={styles.creatorDetails}>
-              <Text style={styles.creatorName}>{item.creator.username}</Text>
-              <Text style={styles.creatorHandle}>{item.creator.handle}</Text>
-            </View>
+          <View style={styles.headerLeft}>
+            <Text style={styles.challengeTitle}>{item.challengeTitle}</Text>
+            <Text style={styles.creatorText}>by {item.creator.username}</Text>
           </View>
-          <View style={styles.timeInfo}>
+          <View style={styles.headerRight}>
             <Text style={[
               styles.timeRemaining,
-              item.isExpired ? styles.expiredText : styles.activeText
+              hasExpired ? styles.expiredTime : styles.activeTime
             ]}>
               {timeRemaining}
             </Text>
           </View>
         </View>
 
-        {/* Challenge Title */}
-        <Text style={styles.challengeTitle}>{item.challengeTitle}</Text>
-
-        {/* User's Choice */}
-        <View style={styles.userChoice}>
-          <View style={[
-            styles.choiceBadge,
-            item.userChoice === 'yes' ? styles.yesBadge : styles.noBadge
-          ]}>
-            <Text style={styles.choiceText}>
-              You committed to {item.userChoice.toUpperCase()}
-            </Text>
-            <Text style={styles.stakeText}>${item.stake} stake</Text>
+        {/* Your Investment */}
+        <View style={styles.investmentSection}>
+          <View style={styles.investmentRow}>
+            <Text style={styles.investmentLabel}>Your Investment:</Text>
+            <View style={[
+              styles.choiceBadge,
+              item.userChoice === 'yes' ? styles.yesBadge : styles.noBadge
+            ]}>
+              <Text style={styles.choiceText}>
+                {item.userChoice === 'yes' ? 'YES' : 'NO'} (${item.stake})
+              </Text>
+            </View>
           </View>
         </View>
 
         {/* Pool Stats */}
         <View style={styles.poolStats}>
           <View style={styles.poolRow}>
-            <Text style={styles.poolLabel}>Your side ({item.userChoice.toUpperCase()}):</Text>
-            <Text style={styles.poolAmount}>${userPool}</Text>
-            <Text style={styles.poolPercent}>({userPercent}%)</Text>
+            <Text style={styles.poolLabel}>Total Pool:</Text>
+            <Text style={styles.poolValue}>${totalPool}</Text>
           </View>
           <View style={styles.poolRow}>
-            <Text style={styles.poolLabel}>Total pool:</Text>
-            <Text style={styles.poolAmount}>${totalPool}</Text>
-            <Text style={styles.poolParticipants}>{userParticipants} participants</Text>
+            <Text style={styles.poolLabel}>Your Side ({item.userChoice.toUpperCase()}):</Text>
+            <Text style={styles.poolValue}>${userSidePool} ({userSidePercent}%)</Text>
           </View>
-          {!item.isExpired && (
-            <Text style={styles.expectedPayout}>
-              Expected payout if you win: ${item.expectedPayout}
-            </Text>
+          <View style={styles.poolRow}>
+            <Text style={styles.poolLabel}>Other Side:</Text>
+            <Text style={styles.poolValue}>${otherSidePool} ({otherSidePercent}%)</Text>
+          </View>
+          {!hasExpired && (
+            <View style={styles.payoutRow}>
+              <Text style={styles.payoutLabel}>Expected Return:</Text>
+              <Text style={styles.payoutValue}>${expectedPayout.toFixed(2)}</Text>
+            </View>
           )}
         </View>
 
         {/* Outcome (if expired) */}
-        {item.isExpired && item.outcome && (
-          <View style={styles.outcomeSection}>
-            <Text style={styles.outcomeTitle}>Challenge Result</Text>
-            <Text style={[
-              styles.outcomeText,
-              item.outcome === item.userChoice ? styles.winnerText : styles.loserText
-            ]}>
-              {item.outcome === item.userChoice ? 'You won!' : 'You lost'}
+        {hasExpired && (
+          <View style={[
+            styles.outcomeSection,
+            userWon ? styles.outcomeWin : styles.outcomeLoss
+          ]}>
+            <Text style={styles.outcomeText}>
+              {userWon ? 'You Won!' : 'You Lost!'}
             </Text>
-            <Text style={styles.payoutText}>
-              {item.outcome === item.userChoice 
-                ? `Payout: $${item.expectedPayout}` 
-                : 'No payout'
-              }
-            </Text>
+            {userWon && <Text style={styles.payoutReceived}>Received: ${expectedPayout.toFixed(2)}</Text>}
           </View>
         )}
 
-        {/* Expandable Updates Section */}
-        <TouchableOpacity 
-          style={styles.expandButton}
-          onPress={() => toggleExpanded(item.id)}
-        >
-          <Text style={styles.expandText}>
-            Updates & Participants ({item.updates.length})
+        {/* Expandable Details */}
+        <TouchableOpacity style={styles.expandButton} onPress={() => toggleExpand(item.id)}>
+          <Text style={styles.expandButtonText}>
+            {isExpanded ? 'Hide Details ▲' : 'Show Details ▼'}
           </Text>
-          <Text style={styles.expandIcon}>{isExpanded ? '▲' : '▼'}</Text>
         </TouchableOpacity>
 
         {isExpanded && (
           <View style={styles.expandedContent}>
-            {/* Updates */}
-            <View style={styles.updatesSection}>
-              <Text style={styles.sectionTitle}>Progress Updates</Text>
-              {item.updates.map((update) => (
-                <View key={update.id} style={styles.updateItem}>
-                  <Text style={styles.updateContent}>{update.content}</Text>
-                  {update.image && (
-                    <Image source={{ uri: update.image }} style={styles.updateImage} />
-                  )}
-                  <Text style={styles.updateTimestamp}>{update.timestamp}</Text>
-                </View>
-              ))}
-            </View>
+            {/* Creator Updates */}
+            {item.updates.length > 0 && (
+              <View style={styles.updatesSection}>
+                <Text style={styles.sectionHeader}>Progress Updates:</Text>
+                {item.updates.map((update) => (
+                  <View key={update.id} style={styles.updateItem}>
+                    <Text style={styles.updateContent}>{update.content}</Text>
+                    {update.image && (
+                      <Image source={{ uri: update.image }} style={styles.updateImage} />
+                    )}
+                    <Text style={styles.updateTime}>
+                      {new Date(update.timestamp).toLocaleDateString()}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
 
-            {/* Participants */}
+            {/* Participants Breakdown */}
             <View style={styles.participantsSection}>
-              <Text style={styles.sectionTitle}>Participants</Text>
-              <View style={styles.participantsStats}>
-                <View style={styles.participantRow}>
-                  <Text style={styles.participantLabel}>YES:</Text>
-                  <Text style={styles.participantCount}>{item.participantsYes} people</Text>
-                  <Text style={styles.participantAmount}>${item.poolYes}</Text>
-                </View>
-                <View style={styles.participantRow}>
-                  <Text style={styles.participantLabel}>NO:</Text>
-                  <Text style={styles.participantCount}>{item.participantsNo} people</Text>
-                  <Text style={styles.participantAmount}>${item.poolNo}</Text>
-                </View>
+              <Text style={styles.sectionHeader}>Investors:</Text>
+              <View style={styles.participantRow}>
+                <Text style={styles.participantCount}>YES: {item.participantsYes} people</Text>
+                <Text style={styles.participantAmount}>${item.poolYes}</Text>
+              </View>
+              <View style={styles.participantRow}>
+                <Text style={styles.participantCount}>NO: {item.participantsNo} people</Text>
+                <Text style={styles.participantAmount}>${item.poolNo}</Text>
               </View>
             </View>
           </View>
@@ -309,7 +311,8 @@ export default function CommitmentsScreen({ navigation }: Props) {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Commitments</Text>
+        <Text style={styles.headerTitle}>My Investments</Text>
+        <Text style={styles.headerSubtitle}>Supporting friends' challenges</Text>
       </View>
 
       {/* Commitments List */}
@@ -346,7 +349,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
             iconColor={index === 1 ? '#4f46e5' : '#9ca3af'}
             style={styles.navIcon}
           />
-          <Text style={[styles.navText, index === 1 && styles.activeNavText]}>Bets</Text>
+          <Text style={[styles.navText, index === 1 && styles.activeNavText]}>Investments</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -396,74 +399,83 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 20,
     fontWeight: '700',
+    marginBottom: 2,
+  },
+  headerSubtitle: {
+    color: '#9ca3af',
+    fontSize: 12,
   },
   listContainer: {
-    padding: 16,
+    padding: 12,
   },
   card: {
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    marginBottom: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#2d2d2d',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    alignItems: 'flex-start',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2d2d2d',
   },
-  creatorInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  creatorAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  creatorDetails: {
+  headerLeft: {
     flex: 1,
+    marginRight: 12,
   },
-  creatorName: {
+  challengeTitle: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
+    marginBottom: 2,
+    lineHeight: 20,
   },
-  creatorHandle: {
+  creatorText: {
     color: '#9ca3af',
     fontSize: 12,
   },
-  timeInfo: {
+  headerRight: {
     alignItems: 'flex-end',
   },
   timeRemaining: {
     fontSize: 12,
     fontWeight: '600',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
-  activeText: {
-    color: '#4f46e5',
+  activeTime: {
+    color: '#10b981',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
   },
-  expiredText: {
+  expiredTime: {
     color: '#ef4444',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
-  challengeTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 12,
-    lineHeight: 22,
+  investmentSection: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2d2d2d',
   },
-  userChoice: {
-    marginBottom: 12,
+  investmentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  investmentLabel: {
+    color: '#9ca3af',
+    fontSize: 14,
+    fontWeight: '500',
   },
   choiceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
   },
   yesBadge: {
     backgroundColor: '#10b981',
@@ -473,146 +485,119 @@ const styles = StyleSheet.create({
   },
   choiceText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
-  stakeText: {
-    color: '#fff',
-    fontSize: 12,
-    opacity: 0.8,
-  },
   poolStats: {
-    backgroundColor: '#1f2937',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2d2d2d',
   },
   poolRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
+    justifyContent: 'space-between',
+    marginBottom: 6,
   },
   poolLabel: {
     color: '#9ca3af',
     fontSize: 12,
-    flex: 1,
   },
-  poolAmount: {
+  poolValue: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
-    marginRight: 8,
+    fontWeight: '500',
   },
-  poolPercent: {
+  payoutRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#374151',
+  },
+  payoutLabel: {
     color: '#4f46e5',
-    fontSize: 10,
-    marginRight: 8,
-  },
-  poolParticipants: {
-    color: '#6b7280',
-    fontSize: 10,
-  },
-  expectedPayout: {
-    color: '#10b981',
     fontSize: 12,
     fontWeight: '600',
-    marginTop: 4,
+  },
+  payoutValue: {
+    color: '#4f46e5',
+    fontSize: 12,
+    fontWeight: '600',
   },
   outcomeSection: {
-    backgroundColor: '#1f2937',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
+    padding: 16,
     alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#2d2d2d',
   },
-  outcomeTitle: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
+  outcomeWin: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+  },
+  outcomeLoss: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
   outcomeText: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 4,
+    color: '#fff',
+    marginBottom: 2,
   },
-  winnerText: {
-    color: '#10b981',
-  },
-  loserText: {
-    color: '#ef4444',
-  },
-  payoutText: {
-    color: '#9ca3af',
-    fontSize: 12,
-  },
-  expandButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#374151',
-  },
-  expandText: {
-    color: '#4f46e5',
+  payoutReceived: {
     fontSize: 14,
+    color: '#10b981',
     fontWeight: '600',
   },
-  expandIcon: {
+  expandButton: {
+    padding: 12,
+    alignItems: 'center',
+    backgroundColor: '#2d2d2d',
+  },
+  expandButtonText: {
     color: '#4f46e5',
     fontSize: 12,
+    fontWeight: '600',
   },
   expandedContent: {
-    marginTop: 12,
+    padding: 16,
+    backgroundColor: '#1f2937',
   },
   updatesSection: {
     marginBottom: 16,
   },
-  sectionTitle: {
+  sectionHeader: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
   },
   updateItem: {
-    backgroundColor: '#1f2937',
-    padding: 8,
-    borderRadius: 6,
+    backgroundColor: '#2d2d2d',
+    borderRadius: 8,
+    padding: 10,
     marginBottom: 6,
   },
   updateContent: {
     color: '#fff',
     fontSize: 12,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   updateImage: {
-    width: 60,
+    width: 80,
     height: 60,
-    borderRadius: 4,
-    marginBottom: 4,
+    borderRadius: 6,
+    resizeMode: 'cover',
+    marginBottom: 6,
   },
-  updateTimestamp: {
-    color: '#6b7280',
+  updateTime: {
+    color: '#9ca3af',
     fontSize: 10,
   },
-  participantsSection: {
-    marginBottom: 8,
-  },
-  participantsStats: {
-    backgroundColor: '#1f2937',
-    padding: 8,
-    borderRadius: 6,
-  },
+  participantsSection: {},
   participantRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
-  },
-  participantLabel: {
-    color: '#9ca3af',
-    fontSize: 12,
-    width: 30,
   },
   participantCount: {
     color: '#fff',
