@@ -119,7 +119,7 @@ export default function SocialPost({
             </View>
             {expiry && (
               <View style={styles.expiryRow}>
-                <Text style={styles.expiryText}>⏱ {formatExpiry(expiry)}</Text>
+                <Text style={styles.expiryText}>{formatExpiry(expiry)}</Text>
               </View>
             )}
           </View>
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
   },
   username: {
     color: '#1A1D2E',
@@ -298,19 +298,19 @@ const styles = StyleSheet.create({
   },
   handle: {
     color: '#9CA3AF',
-    fontSize: 14,
-    marginRight: 4,
+    fontSize: 13,
+    marginRight: 6,
   },
   timestamp: {
     color: '#9CA3AF',
-    fontSize: 14,
+    fontSize: 12,
   },
   expiryRow: {
     marginTop: 4,
   },
   expiryText: {
     color: '#6B8AFF',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   content: {

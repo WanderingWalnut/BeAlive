@@ -136,7 +136,8 @@ export default function HomeScreen({ navigation, route }: Props) {
         handle,
   timestamp: post.created_at,
         title: challenge.title,
-        caption: (challenge as any).description || challenge.title,
+    // Prefer the explicit post caption (user input). Fall back to challenge description, then title.
+    caption: post.caption || (challenge as any).description || '',
         image: imageUrl,
         upvotes: 0, // Not implemented yet
         downvotes: 0, // Not implemented yet
