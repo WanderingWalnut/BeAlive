@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -9,22 +9,38 @@ import {
   Alert,
   ScrollView,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
 import { Card, Button } from "react-native-paper";
 import BottomNavigation from "../components/BottomNavigation";
 import FloatingButton from "../components/FloatingButton";
-import { useMe } from "../hooks/useMe";
+import { useMe, clearProfileCache } from "../hooks/useMe";
 import { supabase } from "../lib/supabase";
 import * as FileSystem from "expo-file-system/legacy";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
 
+// Global in-memory cache to persist avatars across navigations
+const avatarCache = new Map<string, string>();
+
 export default function ProfileScreen({ navigation }: Props) {
   const [index, setIndex] = useState(2); // Start with settings tab active
   const { me } = useMe();
-  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const loadingRef = useRef(false); // Prevent duplicate loads
+
+  // Initialize avatarUri from cache immediately if available
+  const getCachedAvatar = () => {
+    if (!me) return null;
+    const cacheKey = me?.avatar_url || (me as any)?.user_id;
+    return cacheKey && avatarCache.has(cacheKey)
+      ? avatarCache.get(cacheKey)!
+      : null;
+  };
+
+  const [avatarUri, setAvatarUri] = useState<string | null>(getCachedAvatar);
+  const [isLoadingAvatar, setIsLoadingAvatar] = useState(false);
   const initial = (me?.username?.[0] || "U").toUpperCase();
 
   useEffect(() => {
@@ -32,6 +48,23 @@ export default function ProfileScreen({ navigation }: Props) {
 
     // Don't try to load if me is not yet loaded
     if (!me) return;
+
+    // Check in-memory cache first
+    const cacheKey = me?.avatar_url || (me as any)?.user_id;
+    if (cacheKey && avatarCache.has(cacheKey)) {
+      // Already in memory cache, use it instantly
+      const cachedUri = avatarCache.get(cacheKey);
+      if (avatarUri !== cachedUri) {
+        console.log("✓ Avatar loaded from memory cache (instant)");
+        setAvatarUri(cachedUri || null);
+      }
+      return;
+    }
+
+    // Prevent duplicate simultaneous loads
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setIsLoadingAvatar(true);
 
     const ensureDir = async (dir: string) => {
       const info = await FileSystem.getInfoAsync(dir);
@@ -75,6 +108,7 @@ export default function ProfileScreen({ navigation }: Props) {
       const key = await resolveLatestKey();
       if (!key) {
         if (!cancelled) setAvatarUri(null);
+        loadingRef.current = false;
         return;
       }
 
@@ -84,13 +118,24 @@ export default function ProfileScreen({ navigation }: Props) {
         await ensureDir(cacheDir);
         const safeName = key.replace(/\//g, "_");
         const cachePath = cacheDir + safeName;
+
+        // Check filesystem cache
         const existing = await FileSystem.getInfoAsync(cachePath);
         if (existing.exists && existing.size && existing.size > 0) {
-          if (!cancelled) setAvatarUri(cachePath);
+          console.log("✓ Avatar loaded from filesystem cache (fast)");
+          if (!cancelled) {
+            setAvatarUri(cachePath);
+            // Cache in memory for instant access next time
+            const cacheKey = me?.avatar_url || (me as any)?.user_id;
+            if (cacheKey) {
+              avatarCache.set(cacheKey, cachePath);
+            }
+          }
           return;
         }
 
-        // Download once via signed URL, then serve from cache
+        // Download from Supabase storage (first time only)
+        console.log("⬇ Downloading avatar from storage (first time)...");
         const { data, error } = await supabase.storage
           .from("avatars")
           .createSignedUrl(key, 60 * 10);
@@ -103,15 +148,27 @@ export default function ProfileScreen({ navigation }: Props) {
           data.signedUrl,
           cachePath
         );
-        if (!cancelled) setAvatarUri(uri);
+        console.log("✓ Avatar downloaded and cached successfully");
+        if (!cancelled) {
+          setAvatarUri(uri);
+          // Cache in memory for instant future access
+          const cacheKey = me?.avatar_url || (me as any)?.user_id;
+          if (cacheKey) {
+            avatarCache.set(cacheKey, uri);
+          }
+        }
       } catch (e) {
         console.log("Error loading avatar:", e);
         if (!cancelled) setAvatarUri(null);
+      } finally {
+        loadingRef.current = false;
+        setIsLoadingAvatar(false);
       }
     }
     loadAvatar();
     return () => {
       cancelled = true;
+      loadingRef.current = false;
     };
   }, [me, me?.avatar_url]);
 
@@ -151,7 +208,11 @@ export default function ProfileScreen({ navigation }: Props) {
       {
         text: "Logout",
         style: "destructive",
-        onPress: () => {
+        onPress: async () => {
+          // Clear all caches on logout
+          await clearProfileCache(); // Now async to clear AsyncStorage
+          avatarCache.clear();
+
           navigation.reset({
             index: 0,
             routes: [{ name: "Login" }],
@@ -165,14 +226,21 @@ export default function ProfileScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
 
-      {/* compact header removed to reduce visual weight */}
+      {/* Custom Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Settings</Text>
+      </View>
 
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.profileHeader}>
-          {avatarUri ? (
+          {isLoadingAvatar && !avatarUri ? (
+            <View style={[styles.profilePicture, styles.avatarFallback]}>
+              <ActivityIndicator size="large" color="#6B8AFF" />
+            </View>
+          ) : avatarUri ? (
             <Image
               source={{ uri: avatarUri }}
               style={styles.profilePicture}
@@ -192,7 +260,20 @@ export default function ProfileScreen({ navigation }: Props) {
             <Text style={styles.handle}>{user.handle}</Text>
           ) : null}
 
-          {/* Stats removed per UX: hide posts / followers / following */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{user.posts}</Text>
+              <Text style={styles.statLabel}>Posts</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{user.followers}</Text>
+              <Text style={styles.statLabel}>Followers</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{user.following}</Text>
+              <Text style={styles.statLabel}>Following</Text>
+            </View>
+          </View>
 
           <View style={styles.actionButtons}>
             <Button
@@ -229,7 +310,8 @@ export default function ProfileScreen({ navigation }: Props) {
         </Card>
       </ScrollView>
 
-      {/* Floating button removed from Profile/Settings to prevent adding challenges from this tab */}
+      {/* Floating + Button - Always Visible */}
+      <FloatingButton />
 
       {/* Bottom Navigation */}
       <BottomNavigation currentIndex={index} onTabPress={handleTabPress} />
