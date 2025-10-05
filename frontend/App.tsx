@@ -53,6 +53,7 @@ export type RootStackParamList = {
       description: string;
       stake: number;
       expiryDays: number;
+      expiryHours: number;
       image: string;
     };
   };

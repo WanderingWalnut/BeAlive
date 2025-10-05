@@ -25,8 +25,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ChallengeCreation'>;
 export default function ChallengeCreationScreen({ navigation }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [stake, setStake] = useState('10');
+  const stake = '5'; // Fixed stake amount
   const [expiryDays, setExpiryDays] = useState('7');
+  const [expiryHours, setExpiryHours] = useState('0');
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
@@ -49,8 +50,9 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
         newChallenge: {
           title: title.trim(),
           description: description.trim(),
-          stake: parseInt(stake) || 10,
+          stake: 5, // Fixed stake amount
           expiryDays: parseInt(expiryDays) || 7,
+          expiryHours: parseInt(expiryHours) || 0,
           image: selectedImage,
         },
       });
@@ -216,28 +218,17 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
               <View style={styles.settingCard}>
                 <View style={styles.settingHeader}>
                   <Text style={styles.settingLabel}>Stake Amount</Text>
-                  <Text style={styles.settingDescription}>
-                    How much each person commits
-                  </Text>
+                  <Text style={styles.settingDescription}>Fixed amount for all commitments</Text>
                 </View>
                 <View style={styles.settingInput}>
-                  <Text style={styles.currencySymbol}>$</Text>
-                  <TextInput
-                    value={stake}
-                    onChangeText={setStake}
-                    keyboardType="numeric"
-                    style={styles.stakeInput}
-                    maxLength={3}
-                  />
+                  <Text style={styles.currencySymbol}>$5</Text>
                 </View>
               </View>
 
               <View style={styles.settingCard}>
                 <View style={styles.settingHeader}>
                   <Text style={styles.settingLabel}>Expires In</Text>
-                  <Text style={styles.settingDescription}>
-                    How long the challenge lasts
-                  </Text>
+                  <Text style={styles.settingDescription}>How long the challenge lasts</Text>
                 </View>
                 <View style={styles.settingInput}>
                   <TextInput
@@ -248,44 +239,19 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
                     maxLength={2}
                   />
                   <Text style={styles.unitText}>days</Text>
+                  <TextInput
+                    value={expiryHours}
+                    onChangeText={setExpiryHours}
+                    keyboardType="numeric"
+                    style={[styles.expiryInput, { marginLeft: 8 }]}
+                    maxLength={2}
+                  />
+                  <Text style={styles.unitText}>hours</Text>
                 </View>
               </View>
             </View>
 
-            {/* Preview */}
-            <View style={styles.previewSection}>
-              <Text style={styles.sectionTitle}>Preview</Text>
-              <View style={styles.previewCard}>
-                <View style={styles.previewHeader}>
-                  <View style={styles.previewUserInfo}>
-                    <View style={styles.previewAvatar} />
-                    <View>
-                      <Text style={styles.previewUsername}>You</Text>
-                      <Text style={styles.previewHandle}>@you</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.previewTime}>now</Text>
-                </View>
-                
-                <Text style={styles.previewTitle}>{title || 'Your challenge title...'}</Text>
-                {description && (
-                  <Text style={styles.previewDescription}>
-                    {description}
-                  </Text>
-                )}
-                
-                <View style={styles.previewStats}>
-                  <View style={styles.previewStat}>
-                    <Text style={styles.previewStatLabel}>Stake</Text>
-                    <Text style={styles.previewStatValue}>${stake}</Text>
-                  </View>
-                  <View style={styles.previewStat}>
-                    <Text style={styles.previewStatLabel}>Expires</Text>
-                    <Text style={styles.previewStatValue}>{expiryDays} days</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
+            {/* End of Settings */}
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
@@ -382,9 +348,9 @@ const styles = StyleSheet.create({
   },
   selectedImage: {
     width: '100%',
-    height: 120,
+    aspectRatio: 3/4,
     borderRadius: 12,
-    resizeMode: 'cover',
+    resizeMode: 'contain',
   },
   changeImageButton: {
     position: 'absolute',
@@ -494,80 +460,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginLeft: 8,
   },
-  previewSection: {
-    marginBottom: 32,
-  },
-  previewCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E0E5ED',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  previewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  previewUserInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  previewAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#6B8AFF',
-    marginRight: 8,
-  },
-  previewUsername: {
-    color: '#1A1D2E',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  previewHandle: {
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  previewTime: {
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  previewTitle: {
-    color: '#1A1D2E',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  previewDescription: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  previewStats: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  previewStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  previewStatLabel: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    marginRight: 4,
-  },
-  previewStatValue: {
-    color: '#6B8AFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+
 });

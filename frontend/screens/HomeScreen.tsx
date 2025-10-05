@@ -56,7 +56,7 @@ export default function HomeScreen({ navigation, route }: Props) {
         poolNo: 0,
         participantsYes: 0,
         participantsNo: 0,
-        expiry: new Date(Date.now() + newChallenge.expiryDays * 24 * 60 * 60 * 1000).toISOString(),
+        expiry: new Date(Date.now() + (newChallenge.expiryDays * 24 + newChallenge.expiryHours) * 60 * 60 * 1000).toISOString(),
       };
 
       setPosts(prevPosts => [newPost, ...prevPosts]);
