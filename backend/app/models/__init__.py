@@ -14,6 +14,7 @@ from .challenge import (
     ChallengeUpdate,
     ChallengeOut,
     ChallengeStats,
+    ChallengeDetail,
 )
 from .post import (
     PostCreate,
@@ -52,6 +53,7 @@ __all__ = [
     "ChallengeUpdate",
     "ChallengeOut",
     "ChallengeStats",
+    "ChallengeDetail",
     # post
     "PostCreate",
     "PostUpdate",
