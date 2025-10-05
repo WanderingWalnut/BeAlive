@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -11,101 +11,156 @@ import {
   Image,
   Platform,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
 import { Card, Button, Divider } from "react-native-paper";
 import BottomNavigation from "../components/BottomNavigation";
-import { useMe } from "../hooks/useMe";
 import { supabase } from "../lib/supabase";
-import * as FileSystem from "expo-file-system/legacy";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
 
+type ProfileRow = {
+  user_id: string;
+  username: string | null;
+  full_name: string | null;
+  // Should be a real storage object key like "<uid>/<timestamp>.jpg"
+  avatar_url: string | null;
+};
+
 export default function ProfileScreen({ navigation }: Props) {
-  const [index, setIndex] = useState(2);
-  const { me } = useMe();
-  const [avatarUri, setAvatarUri] = useState<string | null>(null);
-  const initial = (me?.username?.[0] || "U").toUpperCase();
+  const [index] = useState(2);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!me) return;
+  // profile state from DB
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  // signed HTTPS URL for <Image />
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-    const ensureDir = async (dir: string) => {
-      const info = await FileSystem.getInfoAsync(dir);
-      if (!info.exists) {
-        await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-      }
-    };
+  const displayName = profile?.full_name || profile?.username || "User";
+  const handle = profile?.username ? `@${profile.username}` : "";
+  const initial = (
+    profile?.full_name?.[0] ||
+    profile?.username?.[0] ||
+    "U"
+  ).toUpperCase();
 
-    const resolveLatestKey = async (): Promise<string | null> => {
-      if (me?.avatar_url) return me.avatar_url as string;
+  // --- Data loading ---------------------------------------------------------
 
-      const userId = (me as any)?.user_id as string | undefined;
-      if (!userId) return null;
+  async function fetchProfileForCurrentUser() {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth.user?.id;
 
-      const { data, error } = await supabase.storage
-        .from("avatars")
-        .list(userId, {
-          limit: 1,
-          sortBy: { column: "updated_at", order: "desc" },
-        });
+    if (!uid) {
+      // Not logged in: kick to login
+      navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+      return;
+    }
 
-      if (!error && data && data.length > 0) {
-        return `${userId}/${data[0].name}`;
-      }
-      return null;
-    };
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("user_id, username, full_name, avatar_url")
+      .eq("user_id", uid)
+      .single<ProfileRow>();
 
-    async function loadAvatar() {
-      const key = await resolveLatestKey();
-      if (!key) {
-        if (!cancelled) setAvatarUri(null);
-        return;
-      }
+    if (!error && data) {
+      setProfile(data);
+    } else {
+      // profile row doesn't exist yet — still show something
+      setProfile({
+        user_id: uid,
+        username: null,
+        full_name: null,
+        avatar_url: null,
+      });
+    }
+  }
 
+  /**
+   * Resolve a signed HTTPS URL for the user's avatar.
+   * Prefer a real object key from:
+   *   1) profiles.avatar_url (must include a "/")
+   *   2) auth.user.user_metadata.avatar_url (must include a "/")
+   * If neither is usable, optionally list newest object in the user's folder.
+   */
+  async function resolveAvatarSimple(profileRow: ProfileRow | null) {
+    setAvatarUrl(null);
+
+    // get current auth user for metadata + fallback uid
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = profileRow?.user_id || auth.user?.id;
+
+    const metaKey = (auth.user?.user_metadata as any)?.avatar_url as
+      | string
+      | undefined;
+    const keyFromProfile = profileRow?.avatar_url ?? null;
+
+    // must include a slash to be a file, not just the folder/uid
+    const candidateKey =
+      (keyFromProfile && keyFromProfile.includes("/") && keyFromProfile) ||
+      (metaKey && metaKey.includes("/") && metaKey) ||
+      null;
+
+    if (candidateKey) {
       try {
-        const cacheDir = FileSystem.cacheDirectory + "avatars/";
-        await ensureDir(cacheDir);
-        const safeName = key.replace(/\//g, "_");
-        const cachePath = cacheDir + safeName;
-        const existing = await FileSystem.getInfoAsync(cachePath);
-        if (existing.exists && existing.size && existing.size > 0) {
-          if (!cancelled) setAvatarUri(cachePath);
-          return;
-        }
-
         const { data, error } = await supabase.storage
           .from("avatars")
-          .createSignedUrl(key, 60 * 10);
-
-        if (error || !data?.signedUrl)
-          throw error || new Error("No signed URL");
-
-        const { uri } = await FileSystem.downloadAsync(
-          data.signedUrl,
-          cachePath
-        );
-        if (!cancelled) setAvatarUri(uri);
+          .createSignedUrl(candidateKey, 60 * 10);
+        if (!error && data?.signedUrl) {
+          setAvatarUrl(`${data.signedUrl}&t=${Date.now()}`);
+          return;
+        }
       } catch {
-        if (!cancelled) setAvatarUri(null);
+        // fall through to folder listing
       }
     }
-    loadAvatar();
-    return () => {
-      cancelled = true;
-    };
-  }, [me, me?.avatar_url]);
+
+    // Last resort: list the newest object under /<uid>
+    if (!uid) return;
+    try {
+      const { data, error } = await supabase.storage.from("avatars").list(uid, {
+        limit: 1,
+        sortBy: { column: "updated_at", order: "desc" },
+      });
+
+      if (error || !data?.length) return;
+
+      const newestKey = `${uid}/${data[0].name}`;
+      const signed = await supabase.storage
+        .from("avatars")
+        .createSignedUrl(newestKey, 60 * 10);
+
+      if (signed.data?.signedUrl)
+        setAvatarUrl(`${signed.data.signedUrl}&t=${Date.now()}`);
+    } catch {
+      // ignore; avatar remains null -> initial fallback renders
+    }
+  }
+
+  // Load profile whenever the screen focuses
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        await fetchProfileForCurrentUser();
+      })();
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+
+  // When profile changes, resolve avatar
+  useEffect(() => {
+    if (!profile) return;
+    resolveAvatarSimple(profile);
+  }, [profile?.avatar_url, profile?.user_id]);
+
+  // --- UI actions -----------------------------------------------------------
 
   const handleTabPress = (key: string) => {
     if (key === "home") navigation.replace("Home", {});
     else if (key === "commitments") navigation.replace("Commitments");
-  };
-
-  const user = {
-    username: me?.full_name || me?.username || "User",
-    handle: me?.username ? `@${me.username}` : "",
   };
 
   const handleEditProfile = () => {
@@ -115,22 +170,16 @@ export default function ProfileScreen({ navigation }: Props) {
   const handleEditContacts = () => {
     navigation.navigate("Contacts", {
       phone: "mock-phone",
-      username: me?.username || "user",
+      username: profile?.username || "user",
     });
   };
 
   const performLogout = async () => {
     try {
-      // End Supabase session (prevents Splash from seeing a valid session)
       await supabase.auth.signOut();
-
-      // Clear any local caches you read in Home/etc
       await AsyncStorage.multiRemove(["userPosts", "userChallenges"]);
-
-      // Reset nav stack to Login
       navigation.reset({ index: 0, routes: [{ name: "Login" }] });
-    } catch (e) {
-      console.log("Logout error:", e);
+    } catch {
       navigation.reset({ index: 0, routes: [{ name: "Login" }] });
     }
   };
@@ -138,13 +187,11 @@ export default function ProfileScreen({ navigation }: Props) {
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: performLogout,
-      },
+      { text: "Logout", style: "destructive", onPress: performLogout },
     ]);
   };
+
+  // --- Render ---------------------------------------------------------------
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -157,14 +204,14 @@ export default function ProfileScreen({ navigation }: Props) {
         <View style={styles.profileCard}>
           <View style={styles.profileHeaderStrip} />
 
-          {/* Avatar overlaps header strip */}
+          {/* Avatar */}
           <View style={styles.avatarWrap}>
-            {avatarUri ? (
+            {avatarUrl ? (
               <Image
-                source={{ uri: avatarUri }}
+                source={{ uri: avatarUrl }}
                 style={styles.avatar}
                 resizeMode="cover"
-                onError={() => setAvatarUri(null)}
+                onError={() => setAvatarUrl(null)}
               />
             ) : (
               <View style={[styles.avatar, styles.avatarFallback]}>
@@ -173,12 +220,9 @@ export default function ProfileScreen({ navigation }: Props) {
             )}
           </View>
 
-          <Text style={styles.nameText}>{user.username}</Text>
-          {!!user.handle && (
-            <Text style={styles.handleText}>{user.handle}</Text>
-          )}
+          <Text style={styles.nameText}>{displayName}</Text>
+          {!!handle && <Text style={styles.handleText}>{handle}</Text>}
 
-          {/* extra breathing room between name and buttons */}
           <View style={styles.heroSpacer} />
 
           <View style={styles.actionsRow}>
@@ -237,18 +281,13 @@ const shadow = Platform.select({
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
   },
-  android: {
-    elevation: 4,
-  },
+  android: { elevation: 4 },
 });
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLOR.bg },
-
-  // less outer padding so the card sits higher & reduces empty space
   scrollContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 84 },
 
-  // Profile card
   profileCard: {
     backgroundColor: COLOR.card,
     borderRadius: 18,
@@ -256,15 +295,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     ...shadow,
   },
-  profileHeaderStrip: {
-    height: 64,
-    backgroundColor: "#EEF2FF",
-  },
-  avatarWrap: {
-    alignItems: "center",
-    marginTop: -38,
-    marginBottom: 8,
-  },
+  profileHeaderStrip: { height: 64, backgroundColor: "#EEF2FF" },
+
+  avatarWrap: { alignItems: "center", marginTop: -38, marginBottom: 8 },
   avatar: {
     width: 108,
     height: 108,
@@ -290,9 +323,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // adds breathing room before buttons
   heroSpacer: { height: 10 },
-
   actionsRow: {
     flexDirection: "row",
     gap: 10,
@@ -305,7 +336,6 @@ const styles = StyleSheet.create({
   actionSecondary: { borderColor: COLOR.border, backgroundColor: "#fff" },
   actionSecondaryLabel: { color: COLOR.text, fontWeight: "700" },
 
-  // Sections
   sectionCard: {
     backgroundColor: COLOR.card,
     borderRadius: 18,
@@ -313,6 +343,7 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   sectionTitle: { fontSize: 14, color: COLOR.subtext, fontWeight: "700" },
+
   row: {
     flexDirection: "row",
     alignItems: "center",
