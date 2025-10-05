@@ -9,12 +9,12 @@ import {
   Alert,
   ScrollView,
   Image,
+  Platform,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
-import { Card, Button } from "react-native-paper";
+import { Card, Button, Divider } from "react-native-paper";
 import BottomNavigation from "../components/BottomNavigation";
-import FloatingButton from "../components/FloatingButton";
 import { useMe } from "../hooks/useMe";
 import { supabase } from "../lib/supabase";
 import * as FileSystem from "expo-file-system/legacy";
@@ -22,15 +22,13 @@ import * as FileSystem from "expo-file-system/legacy";
 type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
 
 export default function ProfileScreen({ navigation }: Props) {
-  const [index, setIndex] = useState(2); // Start with settings tab active
+  const [index, setIndex] = useState(2);
   const { me } = useMe();
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const initial = (me?.username?.[0] || "U").toUpperCase();
 
   useEffect(() => {
     let cancelled = false;
-
-    // Don't try to load if me is not yet loaded
     if (!me) return;
 
     const ensureDir = async (dir: string) => {
@@ -41,33 +39,21 @@ export default function ProfileScreen({ navigation }: Props) {
     };
 
     const resolveLatestKey = async (): Promise<string | null> => {
-      // Prefer explicit avatar_url saved on profile
-      if (me?.avatar_url) {
-        console.log("Found avatar_url in profile:", me.avatar_url);
-        return me.avatar_url as string;
-      }
-      // Fallback: try to find latest file in expected folders
+      if (me?.avatar_url) return me.avatar_url as string;
+
       const userId = (me as any)?.user_id as string | undefined;
-      if (!userId) {
-        console.log("No user_id found in profile");
-        return null;
+      if (!userId) return null;
+
+      const { data, error } = await supabase.storage
+        .from("avatars")
+        .list(userId, {
+          limit: 1,
+          sortBy: { column: "updated_at", order: "desc" },
+        });
+
+      if (!error && data && data.length > 0) {
+        return `${userId}/${data[0].name}`;
       }
-      console.log("Searching for avatar files for user:", userId);
-      // Bucket 'avatars' organizes files under <uid>/...
-      const tryPrefixes = [`${userId}`];
-      for (const prefix of tryPrefixes) {
-        const { data, error } = await supabase.storage
-          .from("avatars")
-          .list(prefix, {
-            limit: 1,
-            sortBy: { column: "updated_at", order: "desc" },
-          });
-        if (!error && data && data.length > 0) {
-          console.log("Found avatar file:", `${prefix}/${data[0].name}`);
-          return `${prefix}/${data[0].name}`;
-        }
-      }
-      console.log("No avatar files found");
       return null;
     };
 
@@ -79,7 +65,6 @@ export default function ProfileScreen({ navigation }: Props) {
       }
 
       try {
-        // Use file cache keyed by storage path
         const cacheDir = FileSystem.cacheDirectory + "avatars/";
         await ensureDir(cacheDir);
         const safeName = key.replace(/\//g, "_");
@@ -90,22 +75,19 @@ export default function ProfileScreen({ navigation }: Props) {
           return;
         }
 
-        // Download once via signed URL, then serve from cache
         const { data, error } = await supabase.storage
           .from("avatars")
           .createSignedUrl(key, 60 * 10);
-        if (error || !data?.signedUrl) {
-          console.log("Error creating signed URL:", error);
+
+        if (error || !data?.signedUrl)
           throw error || new Error("No signed URL");
-        }
 
         const { uri } = await FileSystem.downloadAsync(
           data.signedUrl,
           cachePath
         );
         if (!cancelled) setAvatarUri(uri);
-      } catch (e) {
-        console.log("Error loading avatar:", e);
+      } catch {
         if (!cancelled) setAvatarUri(null);
       }
     }
@@ -116,19 +98,13 @@ export default function ProfileScreen({ navigation }: Props) {
   }, [me, me?.avatar_url]);
 
   const handleTabPress = (key: string) => {
-    if (key === "home") {
-      navigation.replace("Home", {});
-    } else if (key === "commitments") {
-      navigation.replace("Commitments");
-    }
+    if (key === "home") navigation.replace("Home", {});
+    else if (key === "commitments") navigation.replace("Commitments");
   };
 
   const user = {
-    username: me?.username || "User",
+    username: me?.full_name || me?.username || "User",
     handle: me?.username ? `@${me.username}` : "",
-    posts: 0,
-    following: 0,
-    followers: 0,
   };
 
   const handleEditProfile = () => {
@@ -138,239 +114,197 @@ export default function ProfileScreen({ navigation }: Props) {
   const handleEditContacts = () => {
     navigation.navigate("Contacts", {
       phone: "mock-phone",
-      username: user.username,
+      username: me?.username || "user",
     });
   };
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
+      { text: "Cancel", style: "cancel" },
       {
         text: "Logout",
         style: "destructive",
         onPress: () => {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: "Login" }],
-          });
+          navigation.reset({ index: 0, routes: [{ name: "Login" }] });
         },
       },
     ]);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
-
-      {/* compact header removed to reduce visual weight */}
-
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" />
       <ScrollView
-        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.profileHeader}>
-          {avatarUri ? (
-            <Image
-              source={{ uri: avatarUri }}
-              style={styles.profilePicture}
-              resizeMode="cover"
-              onError={(e) => {
-                console.log("Image load error:", e.nativeEvent.error);
-                setAvatarUri(null);
-              }}
-            />
-          ) : (
-            <View style={[styles.profilePicture, styles.avatarFallback]}>
-              <Text style={styles.avatarInitials}>{initial}</Text>
-            </View>
+        {/* Profile Card */}
+        <View style={styles.profileCard}>
+          <View style={styles.profileHeaderStrip} />
+
+          {/* Avatar overlaps header strip */}
+          <View style={styles.avatarWrap}>
+            {avatarUri ? (
+              <Image
+                source={{ uri: avatarUri }}
+                style={styles.avatar}
+                resizeMode="cover"
+                onError={() => setAvatarUri(null)}
+              />
+            ) : (
+              <View style={[styles.avatar, styles.avatarFallback]}>
+                <Text style={styles.avatarInitial}>{initial}</Text>
+              </View>
+            )}
+          </View>
+
+          <Text style={styles.nameText}>{user.username}</Text>
+          {!!user.handle && (
+            <Text style={styles.handleText}>{user.handle}</Text>
           )}
-          <Text style={styles.username}>{me?.full_name || user.username}</Text>
-          {user.handle ? (
-            <Text style={styles.handle}>{user.handle}</Text>
-          ) : null}
 
-          {/* Stats removed per UX: hide posts / followers / following */}
+          {/* extra breathing room between name and buttons */}
+          <View style={styles.heroSpacer} />
 
-          <View style={styles.actionButtons}>
+          <View style={styles.actionsRow}>
             <Button
               mode="contained"
               onPress={handleEditProfile}
-              style={styles.actionButton}
-              labelStyle={styles.actionButtonLabel}
+              style={[styles.actionBtn, styles.actionPrimary]}
+              labelStyle={styles.actionPrimaryLabel}
             >
               Edit Profile
             </Button>
             <Button
               mode="outlined"
               onPress={handleEditContacts}
-              style={styles.actionButton}
-              labelStyle={styles.actionButtonLabel}
+              style={[styles.actionBtn, styles.actionSecondary]}
+              labelStyle={styles.actionSecondaryLabel}
             >
               Edit Contacts
             </Button>
           </View>
         </View>
 
-        <Card style={styles.card}>
-          <Card.Content>
-            <Button
-              mode="text"
-              onPress={handleLogout}
-              icon="logout"
-              labelStyle={styles.logoutButtonLabel}
-              contentStyle={styles.logoutButtonContent}
-            >
-              Logout
-            </Button>
-          </Card.Content>
+        {/* Account Section */}
+        <Card style={styles.sectionCard}>
+          <Card.Title title="Account" titleStyle={styles.sectionTitle} />
+          <Divider />
+          <TouchableOpacity style={styles.row} onPress={handleLogout}>
+            <Text style={styles.rowText}>Logout</Text>
+            <Text style={styles.rowChevron}>›</Text>
+          </TouchableOpacity>
         </Card>
       </ScrollView>
 
-      {/* Floating button removed from Profile/Settings to prevent adding challenges from this tab */}
-
-      {/* Bottom Navigation */}
       <BottomNavigation currentIndex={index} onTabPress={handleTabPress} />
     </SafeAreaView>
   );
 }
 
+const COLOR = {
+  bg: "#F8FAFB",
+  card: "#FFFFFF",
+  border: "#E5E7EB",
+  text: "#0F172A",
+  subtext: "#6B7280",
+  primary: "#6B8AFF",
+  primaryDark: "#5C79FF",
+  shadow: "#000000",
+  avatarRing: "#DCE3FF",
+  danger: "#EF4444",
+};
+
+const shadow = Platform.select({
+  ios: {
+    shadowColor: COLOR.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  android: {
+    elevation: 4,
+  },
+});
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFB",
-  },
-  header: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E5ED",
-  },
-  headerTitle: {
-    color: "#1A1D2E",
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  profileHeader: {
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E5ED",
-    marginBottom: 20,
-  },
-  profilePicture: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 10,
-    borderWidth: 3,
-    borderColor: "#6B8AFF",
+  safe: { flex: 1, backgroundColor: COLOR.bg },
+
+  // less outer padding so the card sits higher & reduces empty space
+  scrollContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 84 },
+
+  // Profile card
+  profileCard: {
+    backgroundColor: COLOR.card,
+    borderRadius: 18,
     overflow: "hidden",
+    marginBottom: 14,
+    ...shadow,
   },
-  avatarFallback: {
+  profileHeaderStrip: {
+    height: 64,
+    backgroundColor: "#EEF2FF",
+  },
+  avatarWrap: {
     alignItems: "center",
-    justifyContent: "center",
+    marginTop: -38,
+    marginBottom: 8,
+  },
+  avatar: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    borderWidth: 3,
+    borderColor: COLOR.avatarRing,
     backgroundColor: "#E5E7EB",
   },
-  avatarInitials: {
-    color: "#4B5563",
-    fontSize: 28,
-    fontWeight: "800",
-  },
-  username: {
-    color: "#1A1D2E",
+  avatarFallback: { alignItems: "center", justifyContent: "center" },
+  avatarInitial: { fontSize: 40, fontWeight: "800", color: "#4B5563" },
+
+  nameText: {
+    textAlign: "center",
     fontSize: 22,
-    fontWeight: "700",
+    fontWeight: "800",
+    color: COLOR.text,
+    marginTop: 6,
   },
-  handle: {
-    color: "#9CA3AF",
-    fontSize: 15,
-    marginBottom: 15,
-  },
-  statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "100%",
-    marginBottom: 20,
-  },
-  statItem: {
-    alignItems: "center",
-  },
-  statNumber: {
-    color: "#1A1D2E",
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  statLabel: {
-    color: "#9CA3AF",
+  handleText: {
+    textAlign: "center",
     fontSize: 13,
+    color: COLOR.subtext,
+    marginTop: 4,
   },
-  actionButtons: {
+
+  // adds breathing room before buttons
+  heroSpacer: { height: 10 },
+
+  actionsRow: {
     flexDirection: "row",
     gap: 10,
-    width: "100%",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
-  actionButton: {
-    flex: 1,
-    borderRadius: 12,
+  actionBtn: { flex: 1, borderRadius: 12 },
+  actionPrimary: { backgroundColor: COLOR.primary },
+  actionPrimaryLabel: { color: "#fff", fontWeight: "700" },
+  actionSecondary: { borderColor: COLOR.border, backgroundColor: "#fff" },
+  actionSecondaryLabel: { color: COLOR.text, fontWeight: "700" },
+
+  // Sections
+  sectionCard: {
+    backgroundColor: COLOR.card,
+    borderRadius: 18,
+    marginTop: 6,
+    ...shadow,
   },
-  actionButtonLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  card: {
-    marginHorizontal: 20,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  logoutButtonLabel: {
-    color: "#FF6B6B",
-    fontWeight: "600",
-  },
-  logoutButtonContent: {
-    justifyContent: "flex-start",
-    paddingLeft: 0,
-  },
-  bottomNav: {
+  sectionTitle: { fontSize: 14, color: COLOR.subtext, fontWeight: "700" },
+  row: {
     flexDirection: "row",
-    backgroundColor: "#000",
-    borderTopWidth: 1,
-    borderTopColor: "#1f2937",
-    height: 60,
-    paddingBottom: 8,
-    paddingTop: 8,
-  },
-  navItem: {
-    flex: 1,
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    justifyContent: "space-between",
   },
-  activeNavItem: {
-    backgroundColor: "transparent",
-  },
-  navIcon: {
-    margin: 0,
-    width: 24,
-    height: 24,
-  },
-  navText: {
-    color: "#9ca3af",
-    fontSize: 10,
-    marginTop: 2,
-  },
-  activeNavText: {
-    color: "#4f46e5",
-  },
+  rowText: { fontSize: 16, color: COLOR.danger, fontWeight: "700" },
+  rowChevron: { fontSize: 20, color: COLOR.subtext, marginLeft: 8 },
 });
