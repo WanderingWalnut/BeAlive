@@ -16,6 +16,7 @@ import {
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
 import { supabase } from "../lib/supabase";
+import { getMe } from "../lib/api";
 
 type Props = NativeStackScreenProps<RootStackParamList, "OTP">;
 
@@ -107,14 +108,34 @@ export default function OTPScreen({ route, navigation }: Props) {
 
   const blob1Style = {
     transform: [
-      { translateY: blob1.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) },
-      { translateX: blob1.interpolate({ inputRange: [0, 1], outputRange: [0, 10] }) },
+      {
+        translateY: blob1.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, -14],
+        }),
+      },
+      {
+        translateX: blob1.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 10],
+        }),
+      },
     ],
   };
   const blob2Style = {
     transform: [
-      { translateY: blob2.interpolate({ inputRange: [0, 1], outputRange: [0, 12] }) },
-      { translateX: blob2.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }) },
+      {
+        translateY: blob2.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 12],
+        }),
+      },
+      {
+        translateX: blob2.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, -10],
+        }),
+      },
     ],
   };
 
@@ -128,10 +149,26 @@ export default function OTPScreen({ route, navigation }: Props) {
   const triggerShake = () => {
     shake.setValue(0);
     Animated.sequence([
-      Animated.timing(shake, { toValue: 1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: -1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 1, duration: 60, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 0, duration: 60, useNativeDriver: true }),
+      Animated.timing(shake, {
+        toValue: 1,
+        duration: 60,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shake, {
+        toValue: -1,
+        duration: 60,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shake, {
+        toValue: 1,
+        duration: 60,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shake, {
+        toValue: 0,
+        duration: 60,
+        useNativeDriver: true,
+      }),
     ]).start();
   };
 
@@ -149,7 +186,21 @@ export default function OTPScreen({ route, navigation }: Props) {
         type: "sms",
       });
       if (error) throw error;
-      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+      // Decide next screen based on profile completeness
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        let next: "Home" | "ProfileSetup" = "Home";
+        if (token) {
+          const profile = await getMe(token);
+          const needsSetup =
+            !profile || !profile.username || !profile.avatar_url;
+          if (needsSetup) next = "ProfileSetup";
+        }
+        navigation.reset({ index: 0, routes: [{ name: next }] });
+      } catch {
+        navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+      }
     } catch (e: any) {
       setErr(e?.message ?? "Invalid or expired code.");
       triggerShake();
@@ -166,15 +217,24 @@ export default function OTPScreen({ route, navigation }: Props) {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         {/* Bubbles */}
-        <Animated.View pointerEvents="none" style={[styles.blobA, blob1Style]} />
-        <Animated.View pointerEvents="none" style={[styles.blobB, blob2Style]} />
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.blobA, blob1Style]}
+        />
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.blobB, blob2Style]}
+        />
 
         <View style={styles.inner}>
           {/* Header */}
           <Animated.View
             style={[
               styles.header,
-              { opacity: heroOpacity, transform: [{ translateY: heroTranslate }] },
+              {
+                opacity: heroOpacity,
+                transform: [{ translateY: heroTranslate }],
+              },
             ]}
           >
             <Text style={styles.title}>Verify your phone</Text>
@@ -219,7 +279,11 @@ export default function OTPScreen({ route, navigation }: Props) {
               />
             </Animated.View>
 
-            {err ? <Text style={styles.error}>{err}</Text> : <View style={{ height: 8 }} />}
+            {err ? (
+              <Text style={styles.error}>{err}</Text>
+            ) : (
+              <View style={{ height: 8 }} />
+            )}
 
             <Animated.View style={{ transform: [{ scale: btnScale }] }}>
               <TouchableOpacity
@@ -228,13 +292,23 @@ export default function OTPScreen({ route, navigation }: Props) {
                 onPress={onVerify}
                 disabled={!isValid || loading}
                 activeOpacity={0.9}
-                style={[styles.cta, (!isValid || loading) && styles.ctaDisabled]}
+                style={[
+                  styles.cta,
+                  (!isValid || loading) && styles.ctaDisabled,
+                ]}
               >
-                {loading ? <ActivityIndicator /> : <Text style={styles.ctaText}>Continue</Text>}
+                {loading ? (
+                  <ActivityIndicator />
+                ) : (
+                  <Text style={styles.ctaText}>Continue</Text>
+                )}
               </TouchableOpacity>
             </Animated.View>
 
-            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 12 }}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ marginTop: 12 }}
+            >
               <Text style={styles.editLink}>Wrong number? Edit</Text>
             </TouchableOpacity>
           </Animated.View>
