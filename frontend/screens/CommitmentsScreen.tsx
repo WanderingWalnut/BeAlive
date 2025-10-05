@@ -31,7 +31,8 @@ interface Commitment {
   creator: {
     username: string;
     handle: string;
-    avatar: string;
+    avatar?: string;
+    initial?: string;
   };
   expiry: string;
   userChoice: "yes" | "no";
@@ -60,6 +61,56 @@ export default function CommitmentsScreen({ navigation }: Props) {
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Resolve avatar URL for a user
+  const resolveUserAvatar = useCallback(
+    async (
+      userId: string,
+      avatarKey: string | null
+    ): Promise<string | null> => {
+      const candidateKey =
+        avatarKey && avatarKey.includes("/") ? avatarKey : null;
+
+      if (candidateKey) {
+        try {
+          const { data, error } = await supabase.storage
+            .from("avatars")
+            .createSignedUrl(candidateKey, 60 * 10);
+          if (!error && data?.signedUrl) {
+            return `${data.signedUrl}&t=${Date.now()}`;
+          }
+        } catch {
+          // fall through to folder listing
+        }
+      }
+
+      // Last resort: list the newest object under /<uid>
+      try {
+        const { data, error } = await supabase.storage
+          .from("avatars")
+          .list(userId, {
+            limit: 1,
+            sortBy: { column: "updated_at", order: "desc" },
+          });
+
+        if (error || !data?.length) return null;
+
+        const newestKey = `${userId}/${data[0].name}`;
+        const signed = await supabase.storage
+          .from("avatars")
+          .createSignedUrl(newestKey, 60 * 10);
+
+        if (signed.data?.signedUrl) {
+          return `${signed.data.signedUrl}&t=${Date.now()}`;
+        }
+      } catch {
+        return null;
+      }
+
+      return null;
+    },
+    []
+  );
 
   // Fetch commitments from database
   const fetchCommitments = useCallback(
@@ -114,14 +165,13 @@ export default function CommitmentsScreen({ navigation }: Props) {
             // Get challenge owner profile
             let creatorUsername = "Unknown User";
             let creatorHandle = "@unknown";
-            let creatorAvatar = `https://i.pravatar.cc/150?img=${Math.floor(
-              Math.random() * 70
-            )}`;
+            let creatorAvatar: string | null = null;
+            let creatorInitial = "U";
 
             try {
               const { data: profile } = await supabase
                 .from("profiles")
-                .select("username, full_name")
+                .select("username, full_name, avatar_url")
                 .eq("user_id", challenge.owner_id)
                 .single();
 
@@ -131,6 +181,17 @@ export default function CommitmentsScreen({ navigation }: Props) {
                 creatorHandle = profile.username
                   ? `@${profile.username}`
                   : "@unknown";
+                creatorInitial = (
+                  profile.full_name?.[0] ||
+                  profile.username?.[0] ||
+                  "U"
+                ).toUpperCase();
+
+                // Resolve avatar URL
+                creatorAvatar = await resolveUserAvatar(
+                  challenge.owner_id,
+                  profile.avatar_url
+                );
               }
             } catch (err) {
               console.error("Error fetching creator profile:", err);
@@ -164,7 +225,8 @@ export default function CommitmentsScreen({ navigation }: Props) {
               creator: {
                 username: creatorUsername,
                 handle: creatorHandle,
-                avatar: creatorAvatar,
+                avatar: creatorAvatar || undefined,
+                initial: creatorInitial,
               },
               expiry:
                 challenge.ends_at ||
@@ -211,7 +273,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
         setLoading(false);
       }
     },
-    [commitments]
+    [commitments, resolveUserAvatar]
   );
 
   // Helper to get image URL
@@ -366,10 +428,18 @@ export default function CommitmentsScreen({ navigation }: Props) {
         <View style={styles.cardContent}>
           {/* Header with creator info */}
           <View style={styles.cardHeader}>
-            <Image
-              source={{ uri: item.creator.avatar }}
-              style={styles.creatorAvatar}
-            />
+            {item.creator.avatar ? (
+              <Image
+                source={{ uri: item.creator.avatar }}
+                style={styles.creatorAvatar}
+              />
+            ) : (
+              <View style={[styles.creatorAvatar, styles.avatarFallback]}>
+                <Text style={styles.avatarInitial}>
+                  {item.creator.initial || "U"}
+                </Text>
+              </View>
+            )}
             <View style={styles.creatorInfo}>
               <Text style={styles.creatorName}>{item.creator.username}</Text>
               <Text style={styles.creatorHandle}>{item.creator.handle}</Text>
@@ -781,6 +851,16 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     marginRight: 10,
+    backgroundColor: "#E5E7EB",
+  },
+  avatarFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitial: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#4B5563",
   },
   creatorInfo: {
     flex: 1,
