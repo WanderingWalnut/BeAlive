@@ -23,9 +23,7 @@ export default function HomeScreen({ navigation, route }: Props) {
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'home', title: 'Home', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
-    { key: 'search', title: 'Search', focusedIcon: 'magnify', unfocusedIcon: 'magnify' },
     { key: 'create', title: 'Create', focusedIcon: 'plus', unfocusedIcon: 'plus' },
-    { key: 'messages', title: 'Messages', focusedIcon: 'message', unfocusedIcon: 'message-outline' },
     { key: 'profile', title: 'Profile', focusedIcon: 'account', unfocusedIcon: 'account-outline' },
   ]);
 
@@ -33,20 +31,8 @@ export default function HomeScreen({ navigation, route }: Props) {
     Alert.alert('Upvote', `Upvoted post ${postId}`);
   };
 
-  const handleComment = (postId: string) => {
-    Alert.alert('Comment', `Comment on post ${postId}`);
-  };
-
-  const handleSave = (postId: string) => {
-    Alert.alert('Save', `Saved post ${postId}`);
-  };
-
-  const handleShare = (postId: string) => {
-    Alert.alert('Share', `Share post ${postId}`);
-  };
-
-  const handleMore = (postId: string) => {
-    Alert.alert('More', `More options for post ${postId}`);
+  const handleDownvote = (postId: string) => {
+    Alert.alert('Downvote', `Downvoted post ${postId}`);
   };
 
   const renderScene = BottomNavigation.SceneMap({
@@ -59,10 +45,7 @@ export default function HomeScreen({ navigation, route }: Props) {
             <SocialPostComponent
               {...item}
               onUpvote={() => handleUpvote(item.id)}
-              onComment={() => handleComment(item.id)}
-              onSave={() => handleSave(item.id)}
-              onShare={() => handleShare(item.id)}
-              onMore={() => handleMore(item.id)}
+              onDownvote={() => handleDownvote(item.id)}
             />
           )}
           contentContainerStyle={styles.feedContainer}
@@ -70,24 +53,10 @@ export default function HomeScreen({ navigation, route }: Props) {
         />
       </View>
     ),
-    search: () => (
-      <View style={styles.scene}>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Search coming soon!</Text>
-        </View>
-      </View>
-    ),
     create: () => (
       <View style={styles.scene}>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Create post coming soon!</Text>
-        </View>
-      </View>
-    ),
-    messages: () => (
-      <View style={styles.scene}>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Messages coming soon!</Text>
         </View>
       </View>
     ),
@@ -102,7 +71,9 @@ export default function HomeScreen({ navigation, route }: Props) {
 
   const handleTabPress = (key: string) => {
     if (key === 'profile') {
-      navigation.navigate('Settings');
+      navigation.navigate('Profile');
+    } else if (key === 'create') {
+      navigation.navigate('ChallengeCreation');
     }
   };
 

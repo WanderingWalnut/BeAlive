@@ -7,7 +7,7 @@ export interface SocialPost {
   image?: string;
   verified?: boolean;
   upvotes: number;
-  comments: number;
+  downvotes: number;
 }
 
 export const mockSocialPosts: SocialPost[] = [
@@ -18,7 +18,7 @@ export const mockSocialPosts: SocialPost[] = [
     timestamp: '25m',
     content: 'Comic Sans.',
     upvotes: 9230,
-    comments: 92,
+    downvotes: 12,
   },
   {
     id: '2',
@@ -29,7 +29,7 @@ export const mockSocialPosts: SocialPost[] = [
     image: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=300&fit=crop',
     verified: true,
     upvotes: 49,
-    comments: 11,
+    downvotes: 2,
   },
   {
     id: '3',
@@ -40,7 +40,7 @@ export const mockSocialPosts: SocialPost[] = [
     image: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=400&h=200&fit=crop',
     verified: true,
     upvotes: 156,
-    comments: 23,
+    downvotes: 8,
   },
   {
     id: '4',
@@ -49,7 +49,7 @@ export const mockSocialPosts: SocialPost[] = [
     timestamp: '3hr',
     content: 'Just finished my morning workout. Feeling energized! 💪',
     upvotes: 89,
-    comments: 7,
+    downvotes: 3,
   },
   {
     id: '5',
@@ -60,6 +60,6 @@ export const mockSocialPosts: SocialPost[] = [
     image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop',
     verified: true,
     upvotes: 234,
-    comments: 18,
+    downvotes: 5,
   },
 ];

@@ -17,12 +17,9 @@ interface SocialPostProps {
   image?: string;
   verified?: boolean;
   upvotes: number;
-  comments: number;
+  downvotes: number;
   onUpvote: () => void;
-  onComment: () => void;
-  onSave: () => void;
-  onShare: () => void;
-  onMore: () => void;
+  onDownvote: () => void;
 }
 
 export default function SocialPost({
@@ -33,12 +30,9 @@ export default function SocialPost({
   image,
   verified = false,
   upvotes,
-  comments,
+  downvotes,
   onUpvote,
-  onComment,
-  onSave,
-  onShare,
-  onMore,
+  onDownvote,
 }: SocialPostProps) {
   return (
     <View style={styles.container}>
@@ -58,12 +52,6 @@ export default function SocialPost({
             </View>
           </View>
         </View>
-        <IconButton
-          icon="dots-horizontal"
-          size={20}
-          iconColor="#9ca3af"
-          onPress={onMore}
-        />
       </View>
 
       {/* Content */}
@@ -86,41 +74,14 @@ export default function SocialPost({
           <Text style={styles.interactionText}>{upvotes.toLocaleString()}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.interactionItem} onPress={onComment}>
+        <TouchableOpacity style={styles.interactionItem} onPress={onDownvote}>
           <IconButton
-            icon="comment-outline"
+            icon="arrow-down"
             size={20}
             iconColor="#9ca3af"
             style={styles.interactionIcon}
           />
-          <Text style={styles.interactionText}>{comments}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.interactionItem} onPress={onSave}>
-          <IconButton
-            icon="bookmark-outline"
-            size={20}
-            iconColor="#9ca3af"
-            style={styles.interactionIcon}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.interactionItem} onPress={onShare}>
-          <IconButton
-            icon="share"
-            size={20}
-            iconColor="#9ca3af"
-            style={styles.interactionIcon}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.interactionItem} onPress={onMore}>
-          <IconButton
-            icon="dots-horizontal"
-            size={20}
-            iconColor="#9ca3af"
-            style={styles.interactionIcon}
-          />
+          <Text style={styles.interactionText}>{downvotes.toLocaleString()}</Text>
         </TouchableOpacity>
       </View>
     </View>
