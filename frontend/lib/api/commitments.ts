@@ -54,3 +54,19 @@ export async function getMyCommitment(
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+
+/**
+ * Get all commitments for the current user
+ * @param token - Access token
+ * @returns List of user's commitments
+ */
+export async function getMyCommitments(
+  token: string
+): Promise<CommitmentOut[]> {
+  const r = await fetch(`${API_URL}/commitments/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}

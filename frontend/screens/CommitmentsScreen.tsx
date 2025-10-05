@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,13 +9,18 @@ import {
   Image,
   StatusBar,
   Animated,
-} from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../App';
-import BottomNavigation from '../components/BottomNavigation';
-import { useCommitments } from '../contexts/CommitmentsContext';
-import { IconButton } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
+  ActivityIndicator,
+} from "react-native";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../App";
+import BottomNavigation from "../components/BottomNavigation";
+import { useCommitments } from "../contexts/CommitmentsContext";
+import { IconButton } from "react-native-paper";
+import { LinearGradient } from "expo-linear-gradient";
+import { supabase } from "../lib/supabase";
+import { getMyCommitments } from "../lib/api/commitments";
+import { getChallenge, getFeed } from "../lib/api";
+import type { CommitmentOut, ChallengeOut, PostWithCounts } from "../lib/types";
 
 interface Commitment {
   id: string;
@@ -26,7 +31,7 @@ interface Commitment {
     avatar: string;
   };
   expiry: string;
-  userChoice: 'yes' | 'no';
+  userChoice: "yes" | "no";
   stake: number;
   poolYes: number;
   poolNo: number;
@@ -41,21 +46,170 @@ interface Commitment {
     timestamp: string;
   }>;
   isExpired: boolean;
-  outcome?: 'yes' | 'no';
+  outcome?: "yes" | "no";
 }
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Commitments'>;
+type Props = NativeStackScreenProps<RootStackParamList, "Commitments">;
 
 export default function CommitmentsScreen({ navigation }: Props) {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [index, setIndex] = useState(1);
-  const { commitments } = useCommitments();
+  const [commitments, setCommitments] = useState<Commitment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch commitments from database
+  const fetchCommitments = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setCommitments([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get commitments from API
+      const dbCommitments = await getMyCommitments(session.access_token);
+
+      // Enrich each commitment with challenge and post data
+      const enrichedCommitments: Commitment[] = [];
+
+      for (const commitment of dbCommitments) {
+        try {
+          // Fetch challenge details
+          const challenge = await getChallenge(
+            session.access_token,
+            commitment.challenge_id
+          );
+
+          // Fetch post/feed data for counts
+          const feedResponse = await getFeed(session.access_token);
+          const post = feedResponse.items.find(
+            (p) => p.challenge_id === commitment.challenge_id
+          );
+
+          // Get challenge owner profile
+          let creatorUsername = "Unknown User";
+          let creatorHandle = "@unknown";
+          let creatorAvatar = `https://i.pravatar.cc/150?img=${Math.floor(
+            Math.random() * 70
+          )}`;
+
+          try {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("username, full_name")
+              .eq("user_id", challenge.owner_id)
+              .single();
+
+            if (profile) {
+              creatorUsername =
+                profile.full_name || profile.username || "Unknown User";
+              creatorHandle = profile.username
+                ? `@${profile.username}`
+                : "@unknown";
+            }
+          } catch (err) {
+            console.error("Error fetching creator profile:", err);
+          }
+
+          const poolYes = post
+            ? post.for_amount_cents / 100
+            : challenge.amount_cents / 100;
+          const poolNo = post ? post.against_amount_cents / 100 : 0;
+          const participantsYes = post
+            ? post.for_count
+            : commitment.side === "for"
+            ? 1
+            : 0;
+          const participantsNo = post
+            ? post.against_count
+            : commitment.side === "against"
+            ? 1
+            : 0;
+
+          const totalPool = poolYes + poolNo;
+          const userSidePool = commitment.side === "for" ? poolYes : poolNo;
+          const expectedPayout =
+            userSidePool > 0
+              ? (challenge.amount_cents / 100 / userSidePool) * totalPool
+              : challenge.amount_cents / 100;
+
+          enrichedCommitments.push({
+            id: commitment.id.toString(),
+            challengeTitle: challenge.title,
+            creator: {
+              username: creatorUsername,
+              handle: creatorHandle,
+              avatar: creatorAvatar,
+            },
+            expiry:
+              challenge.ends_at ||
+              new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            userChoice: commitment.side === "for" ? "yes" : "no",
+            stake: challenge.amount_cents / 100,
+            poolYes,
+            poolNo,
+            participantsYes,
+            participantsNo,
+            expectedPayout,
+            image: post?.media_url ? getImageUrl(post.media_url) : undefined,
+            updates: [],
+            isExpired: challenge.ends_at
+              ? new Date(challenge.ends_at) < new Date()
+              : false,
+          });
+        } catch (err) {
+          console.error(`Error enriching commitment ${commitment.id}:`, err);
+        }
+      }
+
+      setCommitments(enrichedCommitments);
+    } catch (err) {
+      console.error("Error fetching commitments:", err);
+      setError("Failed to load commitments");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Helper to get image URL
+  const getImageUrl = (mediaUrl: string | null): string | undefined => {
+    if (!mediaUrl) return undefined;
+    if (mediaUrl.startsWith("http://") || mediaUrl.startsWith("https://")) {
+      return mediaUrl;
+    }
+    try {
+      const { data } = supabase.storage.from("posts").getPublicUrl(mediaUrl);
+      return data?.publicUrl || undefined;
+    } catch (err) {
+      console.error("Error getting image URL:", err);
+      return undefined;
+    }
+  };
+
+  // Load commitments on mount and when screen comes into focus
+  useEffect(() => {
+    fetchCommitments();
+  }, [fetchCommitments]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      fetchCommitments();
+    });
+    return unsubscribe;
+  }, [navigation, fetchCommitments]);
 
   const handleTabPress = (key: string) => {
-    if (key === 'home') {
-  navigation.replace('Home', {} as any);
-    } else if (key === 'settings') {
-      navigation.replace('Profile');
+    if (key === "home") {
+      navigation.replace("Home", {} as any);
+    } else if (key === "settings") {
+      navigation.replace("Profile");
     }
   };
 
@@ -64,14 +218,16 @@ export default function CommitmentsScreen({ navigation }: Props) {
     const expiryDate = new Date(expiry);
     const diffMs = expiryDate.getTime() - now.getTime();
 
-    if (diffMs <= 0) return { text: 'Expired', color: '#ef4444' };
+    if (diffMs <= 0) return { text: "Expired", color: "#ef4444" };
 
     const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const hours = Math.floor(
+      (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+    );
 
-    if (days > 7) return { text: `${days} days left`, color: '#10b981' };
-    if (days > 0) return { text: `${days}d ${hours}h left`, color: '#f59e0b' };
-    return { text: `${hours}h left`, color: '#ef4444' };
+    if (days > 7) return { text: `${days} days left`, color: "#10b981" };
+    if (days > 0) return { text: `${days}d ${hours}h left`, color: "#f59e0b" };
+    return { text: `${hours}h left`, color: "#ef4444" };
   };
 
   const toggleExpand = (id: string) => {
@@ -86,21 +242,39 @@ export default function CommitmentsScreen({ navigation }: Props) {
 
   const calculateStats = (item: Commitment) => {
     const totalPool = item.poolYes + item.poolNo;
-    const userSidePool = item.userChoice === 'yes' ? item.poolYes : item.poolNo;
-    const otherSidePool = item.userChoice === 'yes' ? item.poolNo : item.poolYes;
-    const userSidePercent = totalPool > 0 ? Math.round((userSidePool / totalPool) * 100) : 50;
+    const userSidePool = item.userChoice === "yes" ? item.poolYes : item.poolNo;
+    const otherSidePool =
+      item.userChoice === "yes" ? item.poolNo : item.poolYes;
+    const userSidePercent =
+      totalPool > 0 ? Math.round((userSidePool / totalPool) * 100) : 50;
     const potentialReturn = item.expectedPayout - item.stake;
-    const roi = item.stake > 0 ? Math.round((potentialReturn / item.stake) * 100) : 0;
-    
-    return { totalPool, userSidePool, otherSidePool, userSidePercent, potentialReturn, roi };
+    const roi =
+      item.stake > 0 ? Math.round((potentialReturn / item.stake) * 100) : 0;
+
+    return {
+      totalPool,
+      userSidePool,
+      otherSidePool,
+      userSidePercent,
+      potentialReturn,
+      roi,
+    };
   };
 
   const renderSummaryCard = () => {
     if (commitments.length === 0) return null;
 
-    const totalCommitted = commitments.reduce((sum, commitment) => sum + commitment.stake, 0);
-    const totalPotentialReturn = commitments.reduce((sum, commitment) => sum + commitment.expectedPayout, 0);
-    const activeCommitments = commitments.filter(commitment => !commitment.isExpired).length;
+    const totalCommitted = commitments.reduce(
+      (sum, commitment) => sum + commitment.stake,
+      0
+    );
+    const totalPotentialReturn = commitments.reduce(
+      (sum, commitment) => sum + commitment.expectedPayout,
+      0
+    );
+    const activeCommitments = commitments.filter(
+      (commitment) => !commitment.isExpired
+    ).length;
 
     return (
       <View style={styles.summaryCard}>
@@ -112,7 +286,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryStatItem}>
-            <Text style={[styles.summaryStatValue, { color: '#10b981' }]}> 
+            <Text style={[styles.summaryStatValue, { color: "#10b981" }]}>
               {activeCommitments}
             </Text>
             <Text style={styles.summaryStatLabel}>Active Commits</Text>
@@ -120,7 +294,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
           <View style={styles.summaryDivider} />
           <View style={styles.summaryStatItem}>
             <Text style={styles.summaryStatValue}>
-              {commitments.filter(c => c.userChoice === 'yes').length}
+              {commitments.filter((c) => c.userChoice === "yes").length}
             </Text>
             <Text style={styles.summaryStatLabel}>Believing In</Text>
           </View>
@@ -133,11 +307,11 @@ export default function CommitmentsScreen({ navigation }: Props) {
     const isExpanded = expandedCards.has(item.id);
     const timeInfo = formatTimeRemaining(item.expiry);
     const stats = calculateStats(item);
-    const hasExpired = timeInfo.text === 'Expired';
+    const hasExpired = timeInfo.text === "Expired";
     const userWon = hasExpired && item.outcome === item.userChoice;
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.card}
         activeOpacity={0.95}
         onPress={() => toggleExpand(item.id)}
@@ -154,15 +328,20 @@ export default function CommitmentsScreen({ navigation }: Props) {
         <View style={styles.cardContent}>
           {/* Header with creator info */}
           <View style={styles.cardHeader}>
-            <Image 
-              source={{ uri: item.creator.avatar }} 
+            <Image
+              source={{ uri: item.creator.avatar }}
               style={styles.creatorAvatar}
             />
             <View style={styles.creatorInfo}>
               <Text style={styles.creatorName}>{item.creator.username}</Text>
               <Text style={styles.creatorHandle}>{item.creator.handle}</Text>
             </View>
-            <View style={[styles.timeBadge, { backgroundColor: `${timeInfo.color}20` }]}>
+            <View
+              style={[
+                styles.timeBadge,
+                { backgroundColor: `${timeInfo.color}20` },
+              ]}
+            >
               <Text style={[styles.timeText, { color: timeInfo.color }]}>
                 {timeInfo.text}
               </Text>
@@ -178,12 +357,16 @@ export default function CommitmentsScreen({ navigation }: Props) {
           <View style={styles.positionContainer}>
             <View style={styles.positionBadge}>
               <Text style={styles.positionLabel}>YOUR COMMITMENT</Text>
-              <View style={[
-                styles.positionValue,
-                item.userChoice === 'yes' ? styles.yesPosition : styles.noPosition
-              ]}>
+              <View
+                style={[
+                  styles.positionValue,
+                  item.userChoice === "yes"
+                    ? styles.yesPosition
+                    : styles.noPosition,
+                ]}
+              >
                 <Text style={styles.positionText}>
-                  {item.userChoice === 'yes' ? '✓ Supporting' : '✗ Doubtful'}
+                  {item.userChoice === "yes" ? "✓ Supporting" : "✗ Doubtful"}
                 </Text>
                 <Text style={styles.positionAmount}>${item.stake}</Text>
               </View>
@@ -195,11 +378,14 @@ export default function CommitmentsScreen({ navigation }: Props) {
                 <Text style={styles.returnsValue}>
                   ${item.expectedPayout.toFixed(2)}
                 </Text>
-                <Text style={[
-                  styles.roiText,
-                  stats.roi > 0 ? styles.roiPositive : styles.roiNeutral
-                ]}>
-                  {stats.potentialReturn > 0 ? '+$' : ''}{stats.potentialReturn.toFixed(0)} back
+                <Text
+                  style={[
+                    styles.roiText,
+                    stats.roi > 0 ? styles.roiPositive : styles.roiNeutral,
+                  ]}
+                >
+                  {stats.potentialReturn > 0 ? "+$" : ""}
+                  {stats.potentialReturn.toFixed(0)} back
                 </Text>
               </View>
             )}
@@ -210,24 +396,29 @@ export default function CommitmentsScreen({ navigation }: Props) {
             <View style={styles.poolDistribution}>
               <Text style={styles.communityLabel}>Community Support</Text>
               <View style={styles.poolBar}>
-                <View 
+                <View
                   style={[
-                    styles.poolBarYes, 
-                    { width: `${stats.userSidePercent}%` }
-                  ]} 
+                    styles.poolBarYes,
+                    { width: `${stats.userSidePercent}%` },
+                  ]}
                 />
               </View>
               <View style={styles.poolLabels}>
                 <View style={styles.poolLabelItem}>
-                  <View style={[styles.poolDot, { backgroundColor: '#10b981' }]} />
+                  <View
+                    style={[styles.poolDot, { backgroundColor: "#10b981" }]}
+                  />
                   <Text style={styles.poolLabelText}>
                     Believing: ${stats.userSidePool} ({stats.userSidePercent}%)
                   </Text>
                 </View>
                 <View style={styles.poolLabelItem}>
-                  <View style={[styles.poolDot, { backgroundColor: '#ef4444' }]} />
+                  <View
+                    style={[styles.poolDot, { backgroundColor: "#ef4444" }]}
+                  />
                   <Text style={styles.poolLabelText}>
-                    Skeptical: ${stats.otherSidePool} ({100 - stats.userSidePercent}%)
+                    Skeptical: ${stats.otherSidePool} (
+                    {100 - stats.userSidePercent}%)
                   </Text>
                 </View>
               </View>
@@ -236,23 +427,27 @@ export default function CommitmentsScreen({ navigation }: Props) {
 
           {/* Outcome (if expired) */}
           {hasExpired && (
-            <View style={[
-              styles.outcomeContainer,
-              userWon ? styles.outcomeWin : styles.outcomeLoss
-            ]}>
+            <View
+              style={[
+                styles.outcomeContainer,
+                userWon ? styles.outcomeWin : styles.outcomeLoss,
+              ]}
+            >
               <View style={styles.outcomeContent}>
-                <IconButton 
-                  icon={userWon ? 'check-circle' : 'close-circle'}
+                <IconButton
+                  icon={userWon ? "check-circle" : "close-circle"}
                   size={24}
-                  iconColor={userWon ? '#10b981' : '#ef4444'}
+                  iconColor={userWon ? "#10b981" : "#ef4444"}
                   style={styles.outcomeIcon}
                 />
                 <View style={styles.outcomeTextContainer}>
-                  <Text style={[
-                    styles.outcomeText,
-                    { color: userWon ? '#10b981' : '#ef4444' }
-                  ]}>
-                    {userWon ? 'You Were Right!' : 'Challenge Completed'}
+                  <Text
+                    style={[
+                      styles.outcomeText,
+                      { color: userWon ? "#10b981" : "#ef4444" },
+                    ]}
+                  >
+                    {userWon ? "You Were Right!" : "Challenge Completed"}
                   </Text>
                   {userWon && (
                     <Text style={styles.outcomeAmount}>
@@ -264,32 +459,39 @@ export default function CommitmentsScreen({ navigation }: Props) {
                       Your support made a difference
                     </Text>
                   )}
-                    {/* Distribution breakdown */}
-                    {hasExpired && (
-                      <View style={styles.distributionContainer}>
-                        <Text style={styles.distributionTitle}>Distribution</Text>
-                        <Text style={styles.distributionText}>Total pool: ${ (item.poolYes + item.poolNo).toFixed(2) }</Text>
-                        <Text style={styles.distributionText}>Believing: ${ item.poolYes } • Skeptical: ${ item.poolNo }</Text>
-                        {item.outcome && (
-                          <Text style={styles.distributionText}>Winners ({item.outcome}): share distributed accordingly</Text>
-                        )}
-                      </View>
-                    )}
+                  {/* Distribution breakdown */}
+                  {hasExpired && (
+                    <View style={styles.distributionContainer}>
+                      <Text style={styles.distributionTitle}>Distribution</Text>
+                      <Text style={styles.distributionText}>
+                        Total pool: ${(item.poolYes + item.poolNo).toFixed(2)}
+                      </Text>
+                      <Text style={styles.distributionText}>
+                        Believing: ${item.poolYes} • Skeptical: ${item.poolNo}
+                      </Text>
+                      {item.outcome && (
+                        <Text style={styles.distributionText}>
+                          Winners ({item.outcome}): share distributed
+                          accordingly
+                        </Text>
+                      )}
+                    </View>
+                  )}
                 </View>
               </View>
             </View>
           )}
 
           {/* Expand Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.expandToggle}
             onPress={() => toggleExpand(item.id)}
           >
             <Text style={styles.expandText}>
-              {isExpanded ? 'Show Less' : 'View Details'}
+              {isExpanded ? "Show Less" : "View Details"}
             </Text>
             <IconButton
-              icon={isExpanded ? 'chevron-up' : 'chevron-down'}
+              icon={isExpanded ? "chevron-up" : "chevron-down"}
               size={20}
               iconColor="#6B8AFF"
               style={styles.expandIcon}
@@ -330,17 +532,20 @@ export default function CommitmentsScreen({ navigation }: Props) {
                       <View style={styles.updateHeader}>
                         <View style={styles.updateDot} />
                         <Text style={styles.updateTime}>
-                          {new Date(update.timestamp).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric'
-                          })}
+                          {new Date(update.timestamp).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                            }
+                          )}
                         </Text>
                       </View>
                       <Text style={styles.updateText}>{update.content}</Text>
                       {update.image && (
-                        <Image 
-                          source={{ uri: update.image }} 
-                          style={styles.updateImage} 
+                        <Image
+                          source={{ uri: update.image }}
+                          style={styles.updateImage}
                         />
                       )}
                     </View>
@@ -357,9 +562,9 @@ export default function CommitmentsScreen({ navigation }: Props) {
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <IconButton 
-          icon="account-heart" 
-          size={64} 
+        <IconButton
+          icon="account-heart"
+          size={64}
           iconColor="#E0E5ED"
           style={styles.emptyIcon}
         />
@@ -368,19 +573,50 @@ export default function CommitmentsScreen({ navigation }: Props) {
       <Text style={styles.emptyText}>
         Commit to friends' goals and help them stay accountable
       </Text>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.emptyButton}
-  onPress={() => navigation.replace('Home', {} as any)}
+        onPress={() => navigation.replace("Home", {} as any)}
       >
-  <Text style={styles.emptyButtonText}>Find Friends</Text>
+        <Text style={styles.emptyButtonText}>Find Friends</Text>
       </TouchableOpacity>
     </View>
   );
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6B8AFF" />
+          <Text style={styles.loadingText}>Loading commitments...</Text>
+        </View>
+        <BottomNavigation currentIndex={index} onTabPress={handleTabPress} />
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={fetchCommitments}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+        <BottomNavigation currentIndex={index} onTabPress={handleTabPress} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
-      
+
       {/* Compact header removed to match minimal settings style */}
 
       {commitments.length === 0 ? (
@@ -397,10 +633,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
       )}
 
       {/* Bottom Navigation */}
-      <BottomNavigation 
-        currentIndex={index}
-        onTabPress={handleTabPress}
-      />
+      <BottomNavigation currentIndex={index} onTabPress={handleTabPress} />
     </SafeAreaView>
   );
 }
@@ -408,23 +641,23 @@ export default function CommitmentsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFB',
+    backgroundColor: "#F8FAFB",
   },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E5ED',
+    borderBottomColor: "#E0E5ED",
   },
   headerTitle: {
-    color: '#1A1D2E',
+    color: "#1A1D2E",
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: -0.5,
   },
   headerSubtitle: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 14,
     marginTop: 4,
   },
@@ -433,86 +666,86 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   summaryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E0E5ED',
-    shadowColor: '#6B8AFF',
+    borderColor: "#E0E5ED",
+    shadowColor: "#6B8AFF",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
   },
   summaryTitle: {
-    color: '#1A1D2E',
+    color: "#1A1D2E",
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 16,
   },
   summaryStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   summaryStatItem: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
   },
   summaryStatValue: {
-    color: '#1A1D2E',
+    color: "#1A1D2E",
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 4,
   },
   summaryStatLabel: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 11,
-    textAlign: 'center',
+    textAlign: "center",
   },
   summaryDivider: {
     width: 1,
     height: 40,
-    backgroundColor: '#E0E5ED',
+    backgroundColor: "#E0E5ED",
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     marginBottom: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: '#E0E5ED',
-    shadowColor: '#000',
+    borderColor: "#E0E5ED",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
   },
   cardImageContainer: {
-    width: '100%',
+    width: "100%",
     height: 180,
-    position: 'relative',
+    position: "relative",
   },
   cardImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
   imageOverlay: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     height: 60,
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    backgroundColor: "rgba(0,0,0,0.18)",
   },
   cardContent: {
     padding: 16,
   },
   cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
   },
   creatorAvatar: {
@@ -525,28 +758,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   creatorName: {
-    color: '#1A1D2E',
+    color: "#1A1D2E",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   distributionContainer: {
     marginTop: 12,
     padding: 10,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: "#f3f4f6",
     borderRadius: 8,
   },
   distributionTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#1A1D2E',
+    fontWeight: "700",
+    color: "#1A1D2E",
     marginBottom: 6,
   },
   distributionText: {
     fontSize: 13,
-    color: '#4B5563',
+    color: "#4B5563",
   },
   creatorHandle: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 12,
   },
   timeBadge: {
@@ -556,18 +789,18 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   challengeTitle: {
-    color: '#1A1D2E',
+    color: "#1A1D2E",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     lineHeight: 22,
     marginBottom: 16,
   },
   positionContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 16,
   },
   positionBadge: {
@@ -575,92 +808,92 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   positionLabel: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.5,
     marginBottom: 8,
   },
   positionValue: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 10,
   },
   yesPosition: {
-    backgroundColor: '#10b98120',
+    backgroundColor: "#10b98120",
   },
   noPosition: {
-    backgroundColor: '#ef444420',
+    backgroundColor: "#ef444420",
   },
   positionText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#1A1D2E',
+    fontWeight: "700",
+    color: "#1A1D2E",
   },
   positionAmount: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#1A1D2E',
+    fontWeight: "700",
+    color: "#1A1D2E",
   },
   returnsContainer: {
     flex: 1,
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   returnsLabel: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 4,
   },
   returnsValue: {
-    color: '#10b981',
+    color: "#10b981",
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 2,
   },
   roiText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   roiPositive: {
-    color: '#10b981',
+    color: "#10b981",
   },
   roiNeutral: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
   poolDistribution: {
     marginBottom: 16,
   },
   communityLabel: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 8,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   poolBar: {
     height: 6,
-    backgroundColor: '#ef444420',
+    backgroundColor: "#ef444420",
     borderRadius: 3,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 8,
   },
   poolBarYes: {
-    height: '100%',
-    backgroundColor: '#10b981',
+    height: "100%",
+    backgroundColor: "#10b981",
     borderRadius: 3,
   },
   poolLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   poolLabelItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   poolDot: {
     width: 6,
@@ -669,9 +902,9 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   poolLabelText: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   outcomeContainer: {
     borderRadius: 12,
@@ -679,18 +912,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   outcomeWin: {
-    backgroundColor: '#10b98115',
+    backgroundColor: "#10b98115",
     borderWidth: 1,
-    borderColor: '#10b98140',
+    borderColor: "#10b98140",
   },
   outcomeLoss: {
-    backgroundColor: '#ef444415',
+    backgroundColor: "#ef444415",
     borderWidth: 1,
-    borderColor: '#ef444440',
+    borderColor: "#ef444440",
   },
   outcomeContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   outcomeIcon: {
     margin: 0,
@@ -700,31 +933,31 @@ const styles = StyleSheet.create({
   },
   outcomeText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 2,
   },
   outcomeAmount: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#10b981',
+    fontWeight: "600",
+    color: "#10b981",
   },
   outcomeSubtext: {
     fontSize: 13,
-    color: '#9CA3AF',
-    fontWeight: '500',
+    color: "#9CA3AF",
+    fontWeight: "500",
   },
   expandToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E0E5ED',
+    borderTopColor: "#E0E5ED",
   },
   expandText: {
-    color: '#6B8AFF',
+    color: "#6B8AFF",
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   expandIcon: {
     margin: 0,
@@ -732,117 +965,150 @@ const styles = StyleSheet.create({
   expandedSection: {
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E0E5ED',
+    borderTopColor: "#E0E5ED",
   },
   statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     marginBottom: 16,
     gap: 8,
   },
   statBox: {
     flex: 1,
-    minWidth: '45%',
-    backgroundColor: '#F8FAFB',
+    minWidth: "45%",
+    backgroundColor: "#F8FAFB",
     padding: 12,
     borderRadius: 10,
-    alignItems: 'center',
+    alignItems: "center",
   },
   statValue: {
-    color: '#1A1D2E',
+    color: "#1A1D2E",
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 4,
   },
   statLabel: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 11,
-    textAlign: 'center',
+    textAlign: "center",
   },
   updatesSection: {
     marginTop: 8,
   },
   sectionTitle: {
-    color: '#1A1D2E',
+    color: "#1A1D2E",
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 12,
   },
   updateCard: {
-    backgroundColor: '#F8FAFB',
+    backgroundColor: "#F8FAFB",
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
   },
   updateHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 6,
   },
   updateDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#6B8AFF',
+    backgroundColor: "#6B8AFF",
     marginRight: 8,
   },
   updateTime: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   updateText: {
-    color: '#1A1D2E',
+    color: "#1A1D2E",
     fontSize: 13,
     lineHeight: 18,
     marginBottom: 8,
   },
   updateImage: {
-    width: '100%',
+    width: "100%",
     height: 120,
     borderRadius: 8,
-    resizeMode: 'cover',
+    resizeMode: "cover",
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 40,
   },
   emptyIconContainer: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#F8FAFB',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F8FAFB",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 24,
   },
   emptyIcon: {
     margin: 0,
   },
   emptyTitle: {
-    color: '#1A1D2E',
+    color: "#1A1D2E",
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 12,
   },
   emptyText: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 15,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 22,
     marginBottom: 32,
   },
   emptyButton: {
-    backgroundColor: '#6B8AFF',
+    backgroundColor: "#6B8AFF",
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
   },
   emptyButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    color: "#9CA3AF",
+    fontSize: 15,
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  errorText: {
+    color: "#ef4444",
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: "#6B8AFF",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

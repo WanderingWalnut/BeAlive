@@ -69,4 +69,17 @@ class CommitmentService:
         )
         rows = resp.data or []
         return TypeAdapter(List[CommitmentOut]).validate_python(rows)
+    
+    def list_my_commitments(self, user_id: UUID, limit: int = 100) -> List[CommitmentOut]:
+        """List all commitments for a specific user."""
+        resp = (
+            self.client.table("commitments")
+            .select("*")
+            .eq("user_id", str(user_id))
+            .order("created_at", desc=True)
+            .limit(max(1, min(limit, 100)))
+            .execute()
+        )
+        rows = resp.data or []
+        return TypeAdapter(List[CommitmentOut]).validate_python(rows)
 
