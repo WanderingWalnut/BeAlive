@@ -69,3 +69,8 @@ PostFull.model_rebuild()
 
 class PostMediaUpdate(BaseModel):
     media_url: str
+
+
+class FeedResponse(BaseModel):
+    items: list[PostWithCounts]
+    next_cursor: Optional[datetime] = None

@@ -26,6 +26,7 @@ from .post import (
     CreatePostRequest,
     PostFull,
     PostMediaUpdate,
+    FeedResponse,
 )
 from .commitment import (
     CommitmentCreate,
@@ -74,6 +75,7 @@ __all__ = [
     "CreatePostRequest",
     "PostFull",
     "PostMediaUpdate",
+    "FeedResponse",
     # commitment
     "CommitmentCreate",
     "CommitmentOut",
