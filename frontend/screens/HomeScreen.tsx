@@ -198,6 +198,8 @@ export default function HomeScreen({ navigation, route }: Props) {
         challengeId: challenge.id,
         username,
         handle,
+        avatar: avatarUrl,
+        userInitial,
         timestamp: post.created_at,
         title: challenge.title,
         // Prefer the explicit post caption (user input). Fall back to challenge description, then title.

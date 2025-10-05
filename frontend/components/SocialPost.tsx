@@ -104,14 +104,13 @@ export default function SocialPost({
       {/* Header: left = avatar + title/handle, right = timestamp + expiry */}
       <View style={styles.header}>
         <View style={styles.leftRow}>
-          <Image
-            source={{
-              uri: `https://i.pravatar.cc/40?img=${Math.floor(
-                Math.random() * 70
-              )}`,
-            }}
-            style={styles.avatar}
-          />
+          {avatar ? (
+            <Image source={{ uri: avatar }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarInitial}>{userInitial}</Text>
+            </View>
+          )}
           <View style={styles.userDetails}>
             {/* Title goes at the top */}
             <Text style={styles.postTitle} accessibilityRole="header">
@@ -277,11 +276,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   leftRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  userInfo: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
