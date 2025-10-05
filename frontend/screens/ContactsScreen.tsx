@@ -112,10 +112,13 @@ export default function ContactsScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
       
-      {/* Header */}
+      {/* Header with back button */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginBottom: 8 }}>
+          <Text style={{ color: '#6B8AFF' }}>Back</Text>
+        </TouchableOpacity>
         <Text style={styles.title}>Import Contacts</Text>
         <Text style={styles.subtitle}>
           Select friends you want to share challenges with

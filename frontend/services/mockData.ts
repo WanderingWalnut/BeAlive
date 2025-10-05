@@ -24,7 +24,7 @@ export const mockChallenges: Challenge[] = [
       frontCamera: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=600&fit=crop',
       backCamera: 'https://images.unsplash.com/photo-1534258936927-c3712cd0a4b5?w=400&h=600&fit=crop'
     },
-    stake: 10,
+  stake: 5,
     expiry: '2024-01-15T23:59:59Z',
     location: 'Townsend, United States',
     createdAt: '2024-01-08T12:00:00Z',
@@ -64,7 +64,7 @@ export const mockChallenges: Challenge[] = [
       frontCamera: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=600&fit=crop',
       backCamera: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop'
     },
-    stake: 25,
+  stake: 5,
     expiry: '2024-01-31T23:59:59Z',
     location: 'San Francisco, CA',
     createdAt: '2024-01-10T09:00:00Z',
@@ -90,7 +90,7 @@ export const mockChallenges: Challenge[] = [
       frontCamera: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=600&fit=crop',
       backCamera: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=400&h=600&fit=crop'
     },
-    stake: 50,
+  stake: 5,
     expiry: '2024-12-31T23:59:59Z',
     location: 'New York, NY',
     createdAt: '2024-01-05T15:30:00Z',

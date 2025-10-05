@@ -218,9 +218,8 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
 
       // Launch camera
       const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
+        allowsEditing: false, // capture full image
+        quality: 0.9,
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -246,9 +245,8 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
+        allowsEditing: false,
+        quality: 0.9,
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -313,7 +311,7 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
                 <View style={styles.imageContainer}>
                   <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
                   <TouchableOpacity style={styles.changeImageButton} onPress={handleSelectImage}>
-                    <Text style={styles.changeImageText}>Change</Text>
+                    <Text style={styles.changeImageText}>Retake</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -542,9 +540,9 @@ const styles = StyleSheet.create({
   },
   selectedImage: {
     width: '100%',
-    aspectRatio: 3/4,
+    aspectRatio: 4/3,
     borderRadius: 12,
-    resizeMode: 'contain',
+    resizeMode: 'cover',
   },
   changeImageButton: {
     position: 'absolute',

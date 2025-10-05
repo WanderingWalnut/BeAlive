@@ -53,7 +53,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
 
   const handleTabPress = (key: string) => {
     if (key === 'home') {
-      navigation.replace('Home');
+  navigation.replace('Home', {} as any);
     } else if (key === 'settings') {
       navigation.replace('Profile');
     }
@@ -112,10 +112,10 @@ export default function CommitmentsScreen({ navigation }: Props) {
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryStatItem}>
-            <Text style={[styles.summaryStatValue, { color: '#10b981' }]}>
+            <Text style={[styles.summaryStatValue, { color: '#10b981' }]}> 
               {activeCommitments}
             </Text>
-            <Text style={styles.summaryStatLabel}>Active Support</Text>
+            <Text style={styles.summaryStatLabel}>Active Commits</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryStatItem}>
@@ -264,6 +264,17 @@ export default function CommitmentsScreen({ navigation }: Props) {
                       Your support made a difference
                     </Text>
                   )}
+                    {/* Distribution breakdown */}
+                    {hasExpired && (
+                      <View style={styles.distributionContainer}>
+                        <Text style={styles.distributionTitle}>Distribution</Text>
+                        <Text style={styles.distributionText}>Total pool: ${ (item.poolYes + item.poolNo).toFixed(2) }</Text>
+                        <Text style={styles.distributionText}>Believing: ${ item.poolYes } • Skeptical: ${ item.poolNo }</Text>
+                        {item.outcome && (
+                          <Text style={styles.distributionText}>Winners ({item.outcome}): share distributed accordingly</Text>
+                        )}
+                      </View>
+                    )}
                 </View>
               </View>
             </View>
@@ -355,13 +366,13 @@ export default function CommitmentsScreen({ navigation }: Props) {
       </View>
       <Text style={styles.emptyTitle}>No Active Commitments</Text>
       <Text style={styles.emptyText}>
-        Support your friends' goals and hold them accountable
+        Commit to friends' goals and help them stay accountable
       </Text>
       <TouchableOpacity 
         style={styles.emptyButton}
-        onPress={() => navigation.replace('Home')}
+  onPress={() => navigation.replace('Home', {} as any)}
       >
-        <Text style={styles.emptyButtonText}>Find Friends to Support</Text>
+  <Text style={styles.emptyButtonText}>Find Friends</Text>
       </TouchableOpacity>
     </View>
   );
@@ -370,19 +381,13 @@ export default function CommitmentsScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
       
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Commitments</Text>
-        <Text style={styles.headerSubtitle}>
-          Supporting {commitments.length} {commitments.length === 1 ? 'friend' : 'friends'}
-        </Text>
-      </View>
+      {/* Compact header removed to match minimal settings style */}
 
       {commitments.length === 0 ? (
         renderEmptyState()
       ) : (
         <FlatList
-          data={commitments}
+          data={commitments as any}
           keyExtractor={(item) => item.id}
           renderItem={renderCommitmentCard}
           ListHeaderComponent={renderSummaryCard}
@@ -500,7 +505,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 60,
-    background: 'linear-gradient(transparent, rgba(0,0,0,0.3))',
+    backgroundColor: 'rgba(0,0,0,0.18)',
   },
   cardContent: {
     padding: 16,
@@ -523,6 +528,22 @@ const styles = StyleSheet.create({
     color: '#1A1D2E',
     fontSize: 14,
     fontWeight: '600',
+  },
+  distributionContainer: {
+    marginTop: 12,
+    padding: 10,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+  },
+  distributionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1A1D2E',
+    marginBottom: 6,
+  },
+  distributionText: {
+    fontSize: 13,
+    color: '#4B5563',
   },
   creatorHandle: {
     color: '#9CA3AF',

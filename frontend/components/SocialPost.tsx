@@ -28,7 +28,7 @@ interface SocialPostProps {
   updates?: Update[];
   onUpvote: () => void;
   onDownvote: () => void;
-  // Betting properties
+  // Commitment-related properties
   stake?: number;
   poolYes?: number;
   poolNo?: number;
@@ -63,24 +63,19 @@ export default function SocialPost({
   onCommit,
   updates = [],
 }: SocialPostProps) {
-  // Format expiry date
+  // Format expiry date (show days and hours)
   const formatExpiry = (expiryDate: string | undefined) => {
     if (!expiryDate) return '';
-    
+
     const now = new Date();
     const expDate = new Date(expiryDate);
     const diffMs = expDate.getTime() - now.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
-    if (diffDays > 0) {
-      return `${diffDays}d ${diffHours}h left`;
-    } else if (diffHours > 0) {
-      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-      return `${diffHours}h ${diffMinutes}m left`;
-    } else {
-      return 'Ending soon';
-    }
+
+    if (diffDays > 0) return `${diffDays}d ${diffHours}h left`;
+    if (diffHours > 0) return `${diffHours}h left`;
+    return 'Ending soon';
   };
   return (
     <View style={styles.container}>
@@ -98,9 +93,14 @@ export default function SocialPost({
               <Text style={styles.handle}>{handle}</Text>
               <Text style={styles.timestamp}>• {timestamp}</Text>
             </View>
-            {expiry && stake && (
+            {expiry && (
               <View style={styles.expiryRow}>
                 <Text style={styles.expiryText}>⏱ {formatExpiry(expiry)}</Text>
+              </View>
+            )}
+            {stake !== undefined && (
+              <View style={styles.expiryRow}>
+                <Text style={styles.expiryText}>Commit: $5</Text>
               </View>
             )}
           </View>
@@ -111,8 +111,8 @@ export default function SocialPost({
       <View style={styles.content}>
         <Text style={styles.contentText}>{content}</Text>
         {image && (
-          <Image source={{ uri: image }} style={styles.contentImage} />
-        )}
+            <Image source={{ uri: image }} style={styles.contentImage} />
+          )}
       </View>
 
       {/* Updates */}
@@ -134,7 +134,7 @@ export default function SocialPost({
       {/* Interaction Bar */}
       <View style={styles.interactions}>
         {stake && onCommit ? (
-          // Betting mode - Yes/No buttons
+          // Commit mode - simplified Yes/No buttons (fixed commit amount displayed elsewhere)
           <>
             <TouchableOpacity 
               style={[
@@ -148,14 +148,14 @@ export default function SocialPost({
               <IconButton
                 icon="arrow-up"
                 size={20}
-                iconColor={userCommitment?.choice === 'yes' ? '#4f46e5' : '#9ca3af'}
+                iconColor={userCommitment?.choice === 'yes' ? '#6B8AFF' : '#9CA3AF'}
                 style={styles.interactionIcon}
               />
               <Text style={[
                 styles.interactionText,
                 userCommitment?.choice === 'yes' && styles.selectedText
               ]}>
-                YES ({participantsYes})
+                YES
               </Text>
             </TouchableOpacity>
 
@@ -171,14 +171,14 @@ export default function SocialPost({
               <IconButton
                 icon="arrow-down"
                 size={20}
-                iconColor={userCommitment?.choice === 'no' ? '#4f46e5' : '#9ca3af'}
+                iconColor={userCommitment?.choice === 'no' ? '#6B8AFF' : '#9CA3AF'}
                 style={styles.interactionIcon}
               />
               <Text style={[
                 styles.interactionText,
                 userCommitment?.choice === 'no' && styles.selectedText
               ]}>
-                NO ({participantsNo})
+                NO
               </Text>
             </TouchableOpacity>
           </>
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   },
   contentImage: {
     width: '100%',
-    height: 200,
+    height: 240,
     borderRadius: 12,
     resizeMode: 'cover',
   },

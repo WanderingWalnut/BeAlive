@@ -10,7 +10,7 @@ export interface SocialPost {
   verified?: boolean;
   upvotes: number;
   downvotes: number;
-  // Betting properties
+  // Commitment-related properties
   stake: number;
   poolYes: number;
   poolNo: number;

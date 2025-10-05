@@ -259,7 +259,7 @@ export default function ProfileSetup({ navigation }: Props) {
       });
 
       // 4) Done
-      navigation.replace("Home");
+  navigation.replace("Home", {} as any);
     } catch (e) {
       console.log(e); // TODO: show a toast
     } finally {
@@ -344,9 +344,7 @@ export default function ProfileSetup({ navigation }: Props) {
                 onBlur={() => setUFocused(false)}
                 returnKeyType="next"
               />
-              {!!handlePreview && (
-                <Text style={styles.helper}>{handlePreview}</Text>
-              )}
+              {/* preview removed per design */}
             </View>
 
             <View style={styles.fieldBlock}>

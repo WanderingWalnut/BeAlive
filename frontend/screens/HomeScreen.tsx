@@ -204,7 +204,7 @@ export default function HomeScreen({ navigation, route }: Props) {
     
     Alert.alert(
       'Confirm Your Commitment',
-      `${choiceText}\n\nStake: $${post.stake}\n\nThis commitment will be added to "Support" and cannot be changed once confirmed.`,
+      `${choiceText}\n\nCommit: $${post.stake}\n\nThis commitment will be added to "Commits" and cannot be changed once confirmed.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -231,7 +231,7 @@ export default function HomeScreen({ navigation, route }: Props) {
               })
             );
             
-            // Add to Support
+            // Add to Commits
             const updatedPoolYes = choice === 'yes' ? (post.poolYes || 0) + post.stake : (post.poolYes || 0);
             const updatedPoolNo = choice === 'no' ? (post.poolNo || 0) + post.stake : (post.poolNo || 0);
             const totalPool = updatedPoolYes + updatedPoolNo;
@@ -263,7 +263,7 @@ export default function HomeScreen({ navigation, route }: Props) {
             // Show success message
             Alert.alert(
               'Commitment Made!',
-              `Your commitment has been added to "Support". You can view it in the Support tab.`,
+              `Your commitment has been added to "Commits". You can view it in the Commits tab.`,
               [{ text: 'OK' }]
             );
           }

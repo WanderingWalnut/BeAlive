@@ -106,20 +106,20 @@ export default function ChallengeCard({ challenge, onCommit, onViewUpdates }: Ch
         </View>
       </View>
 
-      {/* Pool Stats */}
+      {/* Community Distribution */}
       <View style={styles.poolStats}>
         <View style={styles.poolRow}>
-          <Text style={styles.poolLabel}>Yes Pool:</Text>
+          <Text style={styles.poolLabel}>Believing</Text>
           <Text style={styles.poolAmount}>${challenge.pool.yes.amount}</Text>
           <Text style={styles.poolParticipants}>({challenge.pool.yes.participants})</Text>
         </View>
         <View style={styles.poolRow}>
-          <Text style={styles.poolLabel}>No Pool:</Text>
+          <Text style={styles.poolLabel}>Skeptical</Text>
           <Text style={styles.poolAmount}>${challenge.pool.no.amount}</Text>
           <Text style={styles.poolParticipants}>({challenge.pool.no.participants})</Text>
         </View>
         <View style={styles.oddsContainer}>
-          <Text style={styles.oddsText}>Odds: {odds.yes}% Yes / {odds.no}% No</Text>
+          <Text style={styles.oddsText}>{odds.yes}% / {odds.no}%</Text>
         </View>
       </View>
 
@@ -271,10 +271,10 @@ const styles = StyleSheet.create({
   },
   mainPhoto: {
     width: width - 32,
-    height: (width - 32) * 1.2,
+    height: (width - 32) * 0.8,
     alignSelf: 'center',
     borderRadius: 8,
-    resizeMode: 'cover',
+    resizeMode: 'contain',
   },
   frontPhotoContainer: {
     position: 'absolute',

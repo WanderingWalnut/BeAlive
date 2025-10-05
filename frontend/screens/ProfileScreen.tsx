@@ -14,7 +14,6 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import { Card, Button } from 'react-native-paper';
 import BottomNavigation from '../components/BottomNavigation';
-import FloatingButton from '../components/FloatingButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
@@ -23,7 +22,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const handleTabPress = (key: string) => {
     if (key === 'home') {
-      navigation.replace('Home');
+  navigation.replace('Home', {} as any);
     } else if (key === 'commitments') {
       navigation.replace('Commitments');
     }
@@ -75,10 +74,7 @@ export default function ProfileScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
 
-      {/* Custom Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Settings</Text>
-      </View>
+      {/* compact header removed to reduce visual weight */}
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
@@ -86,20 +82,7 @@ export default function ProfileScreen({ navigation }: Props) {
           <Text style={styles.username}>{user.username}</Text>
           <Text style={styles.handle}>{user.handle}</Text>
 
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{user.posts}</Text>
-              <Text style={styles.statLabel}>Posts</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{user.followers}</Text>
-              <Text style={styles.statLabel}>Followers</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{user.following}</Text>
-              <Text style={styles.statLabel}>Following</Text>
-            </View>
-          </View>
+          {/* Removed Posts / Followers / Following for simplicity */}
 
           <View style={styles.actionButtons}>
             <Button
@@ -136,8 +119,7 @@ export default function ProfileScreen({ navigation }: Props) {
         </Card>
       </ScrollView>
 
-      {/* Floating + Button - Always Visible */}
-      <FloatingButton />
+  {/* Floating button removed from Profile/Settings to prevent adding challenges from this tab */}
 
       {/* Bottom Navigation */}
       <BottomNavigation 

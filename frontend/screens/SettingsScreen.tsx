@@ -13,7 +13,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import Icon from '../components/Icon';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
 export default function SettingsScreen({ navigation }: Props) {
   const handleLogout = () => {
@@ -90,17 +90,9 @@ export default function SettingsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
       
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="back" size={24} color="#4f46e5" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={styles.placeholder} />
-      </View>
-
+      {/* Note: header removed to keep pages minimal and match other screens */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Profile Section */}
         <View style={styles.section}>
@@ -171,13 +163,13 @@ export default function SettingsScreen({ navigation }: Props) {
             iconName="info"
             title="About BeAlive"
             subtitle="Version 1.0.0"
-            onPress={() => Alert.alert('About', 'BeAlive v1.0.0\nBet on everyday life — with friends.')}
+            onPress={() => Alert.alert('About', 'BeAlive v1.0.0\nA friendly way to support friends and track progress.')}
           />
           <SettingItem
             iconName="support"
-            title="Contact Support"
+            title="Help"
             subtitle="Get help and report issues"
-            onPress={() => Alert.alert('Support', 'Contact us at support@bealive.app')}
+            onPress={() => Alert.alert('Help', 'Contact us at support@bealive.app')}
           />
         </View>
 
