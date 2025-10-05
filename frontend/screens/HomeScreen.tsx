@@ -402,14 +402,6 @@ export default function HomeScreen({ navigation, route }: Props) {
     ]);
   };
 
-  const handleTabPress = (key: string) => {
-    if (key === "commitments") {
-      navigation.replace("Commitments");
-    } else if (key === "settings") {
-      navigation.replace("Profile");
-    }
-  };
-
   if (!user) {
     return (
       <SafeAreaView style={styles.container}>
