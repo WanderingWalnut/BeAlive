@@ -7,14 +7,14 @@ import {
   SafeAreaView,
   FlatList,
   StatusBar,
-  Image,
   TouchableOpacity,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { BottomNavigation, IconButton } from 'react-native-paper';
 import { RootStackParamList } from '../App';
 import { SocialPost, mockSocialPosts } from '../services/socialData';
 import SocialPostComponent from '../components/SocialPost';
+import BottomNavigation from '../components/BottomNavigation';
+import FloatingButton from '../components/FloatingButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -34,8 +34,6 @@ export default function HomeScreen({ navigation, route }: Props) {
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'home', title: 'Home', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
-    { key: 'commitments', title: 'Bets', focusedIcon: 'chart-line', unfocusedIcon: 'chart-line' },
-    { key: 'create', title: 'Create', focusedIcon: 'plus', unfocusedIcon: 'plus' },
     { key: 'settings', title: 'Settings', focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
   ]);
 
@@ -44,12 +42,12 @@ export default function HomeScreen({ navigation, route }: Props) {
     const choiceText = choice === 'yes' ? 'YES (investing in their success)' : 'NO (betting against their success)';
     
     Alert.alert(
-      'Place Your Bet',
-      `Are you sure you want to bet ${choiceText}? This choice cannot be changed and you'll commit $${post?.stake || 0} to the prize pool.`,
+      'Make Your Investment',
+      `Are you sure you want to invest ${choiceText}? This choice cannot be changed and you'll commit $${post?.stake || 0} to the prize pool.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'Place Bet', 
+          text: 'Invest', 
           style: 'default',
           onPress: () => {
             setPosts(prevPosts =>
@@ -77,72 +75,11 @@ export default function HomeScreen({ navigation, route }: Props) {
   };
 
 
-  const renderScene = BottomNavigation.SceneMap({
-    home: () => (
-      <View style={styles.scene}>
-        <FlatList
-          data={posts}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <SocialPostComponent
-              {...item}
-              onUpvote={() => {}}
-              onDownvote={() => {}}
-              onCommit={(choice) => handleCommit(item.id, choice)}
-            />
-          )}
-          contentContainerStyle={styles.feedContainer}
-          showsVerticalScrollIndicator={false}
-        />
-        {/* Floating + Button */}
-        <TouchableOpacity 
-          style={styles.floatingButton}
-          onPress={() => navigation.navigate('ChallengeCreation')}
-        >
-          <IconButton
-            icon="plus"
-            size={24}
-            iconColor="#fff"
-            style={styles.floatingButtonIcon}
-          />
-        </TouchableOpacity>
-      </View>
-    ),
-    commitments: () => (
-      <View style={styles.scene}>
-        <FlatList
-          data={posts.filter(p => p.userCommitment?.locked)}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <SocialPostComponent
-              {...item}
-              onUpvote={() => {}}
-              onDownvote={() => {}}
-              onCommit={(choice) => handleCommit(item.id, choice)}
-            />
-          )}
-          contentContainerStyle={styles.feedContainer}
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
-    ),
-    create: () => (
-      <View style={styles.scene}>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Create challenge coming soon!</Text>
-        </View>
-      </View>
-    ),
-    settings: () => null, // This will be handled by navigation
-  });
-
   const handleTabPress = (key: string) => {
-    if (key === 'settings') {
-      navigation.replace('Profile');
-    } else if (key === 'create') {
-      navigation.navigate('ChallengeCreation');
-    } else if (key === 'commitments') {
+    if (key === 'commitments') {
       navigation.replace('Commitments');
+    } else if (key === 'settings') {
+      navigation.replace('Profile');
     }
   };
 
@@ -174,8 +111,8 @@ export default function HomeScreen({ navigation, route }: Props) {
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>No user data available</Text>
-          <TouchableOpacity 
-            style={styles.button} 
+          <TouchableOpacity
+            style={styles.button}
             onPress={() => navigation.navigate('Login')}
           >
             <Text style={styles.buttonText}>Go to Login</Text>
@@ -189,15 +126,34 @@ export default function HomeScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       
-      <BottomNavigation
-        navigationState={{ index, routes }}
-        onIndexChange={setIndex}
-        renderScene={renderScene}
-        onTabPress={({ route }) => handleTabPress(route.key)}
-        style={styles.bottomNav}
-        barStyle={styles.bottomNavBar}
-        activeColor="#4f46e5"
-        inactiveColor="#9ca3af"
+      {/* Main Content */}
+      <View style={styles.mainContent}>
+        {index === 0 && (
+          <FlatList
+            data={posts}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <SocialPostComponent
+                {...item}
+                onUpvote={() => {}}
+                onDownvote={() => {}}
+                onCommit={(choice) => handleCommit(item.id, choice)}
+              />
+            )}
+            contentContainerStyle={styles.feedContainer}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+
+      </View>
+
+      {/* Floating + Button - Always Visible */}
+      <FloatingButton />
+
+      {/* Bottom Navigation */}
+      <BottomNavigation 
+        currentIndex={index}
+        onTabPress={handleTabPress}
       />
     </SafeAreaView>
   );
@@ -208,65 +164,48 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  mainContent: {
+    flex: 1,
+  },
   scene: {
     flex: 1,
     backgroundColor: '#000',
   },
   feedContainer: {
-    paddingBottom: 0,
-  },
-  bottomNav: {
-    backgroundColor: '#000',
-    borderTopWidth: 1,
-    borderTopColor: '#1f2937',
-    height: 60,
-  },
-  bottomNavBar: {
-    backgroundColor: '#000',
-    height: 60,
-    paddingBottom: 8,
-    paddingTop: 8,
+    paddingBottom: 80,
   },
   emptyContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    alignItems: 'center',
+    paddingHorizontal: 32,
   },
   emptyText: {
-    fontSize: 16,
     color: '#9ca3af',
+    fontSize: 16,
     textAlign: 'center',
   },
   errorContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    alignItems: 'center',
+    paddingHorizontal: 32,
   },
   errorText: {
-    fontSize: 16,
     color: '#ef4444',
-    marginBottom: 20,
+    fontSize: 16,
+    marginBottom: 16,
     textAlign: 'center',
   },
-  floatingButton: {
-    position: 'absolute',
-    bottom: 80,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  button: {
     backgroundColor: '#4f46e5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
   },
-  floatingButtonIcon: {
-    margin: 0,
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

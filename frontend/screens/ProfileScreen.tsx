@@ -12,18 +12,22 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
-import { Card, Button, IconButton } from 'react-native-paper';
+import { Card, Button } from 'react-native-paper';
+import BottomNavigation from '../components/BottomNavigation';
+import FloatingButton from '../components/FloatingButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
 export default function ProfileScreen({ navigation }: Props) {
-  const [index, setIndex] = useState(3); // Start with settings tab active
-  const [routes] = useState([
-    { key: 'home', title: 'Home', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
-    { key: 'commitments', title: 'Bets', focusedIcon: 'chart-line', unfocusedIcon: 'chart-line' },
-    { key: 'create', title: 'Create', focusedIcon: 'plus', unfocusedIcon: 'plus' },
-    { key: 'settings', title: 'Settings', focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
-  ]);
+  const [index, setIndex] = useState(2); // Start with settings tab active
+
+  const handleTabPress = (key: string) => {
+    if (key === 'home') {
+      navigation.replace('Home');
+    } else if (key === 'commitments') {
+      navigation.replace('Commitments');
+    }
+  };
 
   const user = {
     id: 'dev-user',
@@ -66,16 +70,6 @@ export default function ProfileScreen({ navigation }: Props) {
     );
   };
 
-  const handleTabPress = (key: string) => {
-    if (key === 'home') {
-      navigation.replace('Home');
-    } else if (key === 'commitments') {
-      navigation.replace('Commitments');
-    } else if (key === 'create') {
-      navigation.navigate('ChallengeCreation');
-    }
-    // Settings tab stays on current screen
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -142,60 +136,14 @@ export default function ProfileScreen({ navigation }: Props) {
         </Card>
       </ScrollView>
 
+      {/* Floating + Button - Always Visible */}
+      <FloatingButton />
+
       {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity 
-          style={[styles.navItem, index === 0 && styles.activeNavItem]}
-          onPress={() => handleTabPress('home')}
-        >
-          <IconButton
-            icon={index === 0 ? 'home' : 'home-outline'}
-            size={24}
-            iconColor={index === 0 ? '#4f46e5' : '#9ca3af'}
-            style={styles.navIcon}
-          />
-          <Text style={[styles.navText, index === 0 && styles.activeNavText]}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.navItem, index === 1 && styles.activeNavItem]}
-          onPress={() => handleTabPress('commitments')}
-        >
-          <IconButton
-            icon={index === 1 ? 'chart-line' : 'chart-line'}
-            size={24}
-            iconColor={index === 1 ? '#4f46e5' : '#9ca3af'}
-            style={styles.navIcon}
-          />
-          <Text style={[styles.navText, index === 1 && styles.activeNavText]}>Bets</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.navItem, index === 2 && styles.activeNavItem]}
-          onPress={() => handleTabPress('create')}
-        >
-          <IconButton
-            icon={index === 2 ? 'plus' : 'plus'}
-            size={24}
-            iconColor={index === 2 ? '#4f46e5' : '#9ca3af'}
-            style={styles.navIcon}
-          />
-          <Text style={[styles.navText, index === 2 && styles.activeNavText]}>Create</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.navItem, index === 3 && styles.activeNavItem]}
-          onPress={() => handleTabPress('settings')}
-        >
-          <IconButton
-            icon={index === 3 ? 'cog' : 'cog-outline'}
-            size={24}
-            iconColor={index === 3 ? '#4f46e5' : '#9ca3af'}
-            style={styles.navIcon}
-          />
-          <Text style={[styles.navText, index === 3 && styles.activeNavText]}>Settings</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomNavigation 
+        currentIndex={index}
+        onTabPress={handleTabPress}
+      />
     </SafeAreaView>
   );
 }
