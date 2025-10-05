@@ -20,6 +20,7 @@ import FloatingButton from "../components/FloatingButton";
 import { useCommitments } from "../contexts/CommitmentsContext";
 import { supabase } from "../lib/supabase";
 import { getFeed, getChallenge } from "../lib/api";
+import { createCommitment, getMyCommitment } from "../lib/api/commitments";
 import type { PostWithCounts, ChallengeOut } from "../lib/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
@@ -109,8 +110,26 @@ export default function HomeScreen({ navigation, route }: Props) {
       // Convert storage path to public URL if needed
       const imageUrl = getImageUrl(post.media_url);
 
+      // Check if user has already committed to this challenge
+      let userCommitment: { choice: "yes" | "no"; locked: boolean } | undefined;
+      try {
+        const existingCommitment = await getMyCommitment(
+          accessToken,
+          challenge.id
+        );
+        if (existingCommitment) {
+          userCommitment = {
+            choice: existingCommitment.side === "for" ? "yes" : "no",
+            locked: true,
+          };
+        }
+      } catch (err) {
+        console.error("Error fetching user commitment:", err);
+      }
+
       return {
         id: post.id.toString(),
+        challengeId: challenge.id,
         username,
         handle,
         timestamp: new Date(post.created_at).toLocaleDateString(),
@@ -126,6 +145,7 @@ export default function HomeScreen({ navigation, route }: Props) {
         expiry:
           challenge.ends_at ||
           new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        userCommitment,
         updates: [],
       };
     },
@@ -244,15 +264,15 @@ export default function HomeScreen({ navigation, route }: Props) {
     return unsubscribe;
   }, [navigation, applyRouteParams]);
 
-  const handleCommit = (postId: string, choice: "yes" | "no") => {
+  const handleCommit = async (postId: string, choice: "yes" | "no") => {
     const post = posts.find((p) => p.id === postId);
 
     if (!post || !post.stake) {
       return;
     }
 
-    // Check if user already has a commitment on this post
-    if (hasCommitment(postId)) {
+    // Check if user already has a commitment on this post (from UI state or DB)
+    if (post.userCommitment?.locked || hasCommitment(postId)) {
       Alert.alert(
         "Already Committed",
         "You have already committed to this challenge."
@@ -275,6 +295,29 @@ export default function HomeScreen({ navigation, route }: Props) {
           style: "default",
           onPress: async () => {
             try {
+              // Get the current session token
+              const {
+                data: { session },
+              } = await supabase.auth.getSession();
+
+              if (!session?.access_token) {
+                Alert.alert("Error", "You must be logged in to commit.");
+                return;
+              }
+
+              // Map 'yes'/'no' to 'for'/'against' for the API
+              const direction = choice === "yes" ? "for" : "against";
+
+              // Call backend API to save commitment
+              const commitment = await createCommitment(
+                session.access_token,
+                post.challengeId,
+                direction as "for" | "against",
+                `${postId}-${Date.now()}` // idempotency key
+              );
+
+              console.log("Commitment created:", commitment);
+
               // Optimistically update UI
               const updatedPosts = posts.map((p) => {
                 if (p.id === postId) {
@@ -307,7 +350,7 @@ export default function HomeScreen({ navigation, route }: Props) {
 
               setPosts(updatedPosts);
 
-              // Add to Commits (context)
+              // Add to Commits (context) for local state
               const updatedPoolYes =
                 choice === "yes"
                   ? (post.poolYes || 0) + post.stake
@@ -325,7 +368,7 @@ export default function HomeScreen({ navigation, route }: Props) {
                   : post.stake;
 
               addCommitment({
-                id: `commitment-${postId}-${Date.now()}`,
+                id: commitment.id.toString(),
                 postId: postId,
                 challengeTitle: post.content,
                 creator: {
@@ -354,19 +397,22 @@ export default function HomeScreen({ navigation, route }: Props) {
                 updates: [],
               });
 
-              // TODO: Call backend API to save commitment
-
               // Show success message
               Alert.alert(
                 "Commitment Made!",
-                `Your commitment has been added to "Commits". You can view it in the Commits tab.`,
+                `Your commitment has been saved to the database and added to "Commits".`,
                 [{ text: "OK" }]
               );
+
+              // Refresh the feed to get updated counts
+              await fetchPosts();
             } catch (err) {
               console.error("Error saving commitment:", err);
               Alert.alert(
                 "Error",
-                "Failed to save your commitment. Please try again."
+                `Failed to save your commitment: ${
+                  err instanceof Error ? err.message : "Unknown error"
+                }. Please try again.`
               );
             }
           },
