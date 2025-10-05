@@ -82,6 +82,57 @@ export default function HomeScreen({ navigation, route }: Props) {
     []
   );
 
+  // Resolve avatar URL for a user
+  const resolveUserAvatar = useCallback(
+    async (
+      userId: string,
+      avatarKey: string | null
+    ): Promise<string | null> => {
+      // Must include a slash to be a file, not just the folder/uid
+      const candidateKey =
+        avatarKey && avatarKey.includes("/") ? avatarKey : null;
+
+      if (candidateKey) {
+        try {
+          const { data, error } = await supabase.storage
+            .from("avatars")
+            .createSignedUrl(candidateKey, 60 * 10);
+          if (!error && data?.signedUrl) {
+            return `${data.signedUrl}&t=${Date.now()}`;
+          }
+        } catch {
+          // fall through to folder listing
+        }
+      }
+
+      // Last resort: list the newest object under /<uid>
+      try {
+        const { data, error } = await supabase.storage
+          .from("avatars")
+          .list(userId, {
+            limit: 1,
+            sortBy: { column: "updated_at", order: "desc" },
+          });
+
+        if (error || !data?.length) return null;
+
+        const newestKey = `${userId}/${data[0].name}`;
+        const signed = await supabase.storage
+          .from("avatars")
+          .createSignedUrl(newestKey, 60 * 10);
+
+        if (signed.data?.signedUrl) {
+          return `${signed.data.signedUrl}&t=${Date.now()}`;
+        }
+      } catch {
+        return null;
+      }
+
+      return null;
+    },
+    []
+  );
+
   // Convert backend PostWithCounts + ChallengeOut to frontend SocialPost format
   const mapPostToSocialPost = useCallback(
     async (
@@ -92,18 +143,31 @@ export default function HomeScreen({ navigation, route }: Props) {
       // Get author profile info
       let username = "Unknown User";
       let handle = "@unknown";
+      let avatarUrl: string | null = null;
+      let userInitial = "U";
 
       try {
         // Fetch profile from Supabase profiles table directly
         const { data: profile } = await supabase
           .from("profiles")
-          .select("username, full_name")
+          .select("username, full_name, avatar_url")
           .eq("user_id", post.author_id)
           .single();
 
         if (profile) {
           username = profile.full_name || profile.username || "Unknown User";
           handle = profile.username ? `@${profile.username}` : "@unknown";
+          userInitial = (
+            profile.full_name?.[0] ||
+            profile.username?.[0] ||
+            "U"
+          ).toUpperCase();
+
+          // Resolve avatar URL
+          avatarUrl = await resolveUserAvatar(
+            post.author_id,
+            profile.avatar_url
+          );
         }
       } catch (err) {
         console.error("Error fetching profile:", err);
@@ -134,6 +198,8 @@ export default function HomeScreen({ navigation, route }: Props) {
         challengeId: challenge.id,
         username,
         handle,
+        avatar: avatarUrl,
+        userInitial,
         timestamp: new Date(post.created_at).toLocaleDateString(),
         content: challenge.title,
         image: imageUrl,
@@ -151,7 +217,7 @@ export default function HomeScreen({ navigation, route }: Props) {
         updates: [],
       };
     },
-    [getImageUrl]
+    [getImageUrl, resolveUserAvatar]
   );
 
   // Fetch posts from backend API

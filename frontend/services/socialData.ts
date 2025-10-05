@@ -5,6 +5,8 @@ export interface SocialPost {
   challengeId: number; // Added to track the challenge for commitments
   username: string;
   handle: string;
+  avatar?: string | null; // Avatar URL or null
+  userInitial?: string; // First letter of username/full_name for fallback
   timestamp: string;
   content: string;
   image?: string;
