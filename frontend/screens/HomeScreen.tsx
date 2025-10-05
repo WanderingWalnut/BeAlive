@@ -23,6 +23,8 @@ import { getFeed, getChallenge } from "../lib/api";
 import { createCommitment, getMyCommitment } from "../lib/api/commitments";
 import type { PostWithCounts, ChallengeOut } from "../lib/types";
 
+const FEED_CACHE_KEY = "@feed_cache";
+
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 export default function HomeScreen({ navigation, route }: Props) {
@@ -153,7 +155,7 @@ export default function HomeScreen({ navigation, route }: Props) {
   );
 
   // Fetch posts from backend API
-  const fetchPosts = useCallback(async () => {
+  const fetchPosts = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -167,6 +169,20 @@ export default function HomeScreen({ navigation, route }: Props) {
         setPosts([]);
         setLoading(false);
         return;
+      }
+
+      // Load from cache first if not forcing refresh
+      if (!forceRefresh) {
+        try {
+          const cached = await AsyncStorage.getItem(FEED_CACHE_KEY);
+          if (cached) {
+            const cachedPosts = JSON.parse(cached);
+            setPosts(cachedPosts);
+            setLoading(false);
+          }
+        } catch (err) {
+          console.error("Error loading cached feed:", err);
+        }
       }
 
       // Fetch feed from backend
@@ -193,20 +209,33 @@ export default function HomeScreen({ navigation, route }: Props) {
         }
       }
 
-      setPosts(socialPosts);
+      // Only update if data has changed
+      const currentData = JSON.stringify(posts);
+      const newData = JSON.stringify(socialPosts);
+      
+      if (currentData !== newData) {
+        setPosts(socialPosts);
+        
+        // Save to cache
+        try {
+          await AsyncStorage.setItem(FEED_CACHE_KEY, JSON.stringify(socialPosts));
+        } catch (err) {
+          console.error("Error saving feed to cache:", err);
+        }
+      }
     } catch (err) {
       console.error("Error fetching posts:", err);
       setError("Failed to load posts. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [mapPostToSocialPost]);
+  }, [mapPostToSocialPost, posts]);
 
   // When Home screen receives focus, refresh posts from API
   const applyRouteParams = useCallback(async () => {
     try {
-      // Refresh the feed from the API
-      await fetchPosts();
+      // Refresh the feed from the API (force refresh)
+      await fetchPosts(true);
 
       // Handle route params for backwards compatibility
       const params = route.params || {};
@@ -236,7 +265,8 @@ export default function HomeScreen({ navigation, route }: Props) {
     try {
       await AsyncStorage.removeItem("userPosts");
       await AsyncStorage.removeItem("userChallenges");
-      await fetchPosts();
+      await AsyncStorage.removeItem(FEED_CACHE_KEY);
+      await fetchPosts(true);
       Alert.alert(
         "Storage Reset",
         "Cleared local cache and refreshed from server."
@@ -253,8 +283,8 @@ export default function HomeScreen({ navigation, route }: Props) {
 
   // Load posts on mount
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    fetchPosts(false); // Load from cache first
+  }, []);
 
   // Refresh posts when screen comes into focus
   useEffect(() => {
@@ -404,8 +434,8 @@ export default function HomeScreen({ navigation, route }: Props) {
                 [{ text: "OK" }]
               );
 
-              // Refresh the feed to get updated counts
-              await fetchPosts();
+              // Refresh the feed to get updated counts (force refresh)
+              await fetchPosts(true);
             } catch (err) {
               console.error("Error saving commitment:", err);
               Alert.alert(
@@ -490,7 +520,7 @@ export default function HomeScreen({ navigation, route }: Props) {
             ) : error ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity style={styles.button} onPress={fetchPosts}>
+                <TouchableOpacity style={styles.button} onPress={() => fetchPosts(true)}>
                   <Text style={styles.buttonText}>Retry</Text>
                 </TouchableOpacity>
               </View>

@@ -11,6 +11,7 @@ import {
   Animated,
   ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
 import BottomNavigation from "../components/BottomNavigation";
@@ -21,6 +22,8 @@ import { supabase } from "../lib/supabase";
 import { getMyCommitments } from "../lib/api/commitments";
 import { getChallenge, getFeed } from "../lib/api";
 import type { CommitmentOut, ChallengeOut, PostWithCounts } from "../lib/types";
+
+const COMMITMENTS_CACHE_KEY = "@commitments_cache";
 
 interface Commitment {
   id: string;
@@ -59,7 +62,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch commitments from database
-  const fetchCommitments = useCallback(async () => {
+  const fetchCommitments = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -71,6 +74,20 @@ export default function CommitmentsScreen({ navigation }: Props) {
         setCommitments([]);
         setLoading(false);
         return;
+      }
+
+      // Load from cache first if not forcing refresh
+      if (!forceRefresh) {
+        try {
+          const cached = await AsyncStorage.getItem(COMMITMENTS_CACHE_KEY);
+          if (cached) {
+            const cachedCommitments = JSON.parse(cached);
+            setCommitments(cachedCommitments);
+            setLoading(false);
+          }
+        } catch (err) {
+          console.error("Error loading cached commitments:", err);
+        }
       }
 
       // Get commitments from API
@@ -169,14 +186,30 @@ export default function CommitmentsScreen({ navigation }: Props) {
         }
       }
 
-      setCommitments(enrichedCommitments);
+      // Only update if data has changed
+      const currentData = JSON.stringify(commitments);
+      const newData = JSON.stringify(enrichedCommitments);
+      
+      if (currentData !== newData) {
+        setCommitments(enrichedCommitments);
+        
+        // Save to cache
+        try {
+          await AsyncStorage.setItem(
+            COMMITMENTS_CACHE_KEY,
+            JSON.stringify(enrichedCommitments)
+          );
+        } catch (err) {
+          console.error("Error saving commitments to cache:", err);
+        }
+      }
     } catch (err) {
       console.error("Error fetching commitments:", err);
       setError("Failed to load commitments");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [commitments]);
 
   // Helper to get image URL
   const getImageUrl = (mediaUrl: string | null): string | undefined => {
@@ -195,15 +228,15 @@ export default function CommitmentsScreen({ navigation }: Props) {
 
   // Load commitments on mount and when screen comes into focus
   useEffect(() => {
-    fetchCommitments();
-  }, [fetchCommitments]);
+    fetchCommitments(false); // Load from cache first
+  }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
-      fetchCommitments();
+      fetchCommitments(true); // Force refresh when screen comes into focus
     });
     return unsubscribe;
-  }, [navigation, fetchCommitments]);
+  }, [navigation]);
 
   const handleTabPress = (key: string) => {
     if (key === "home") {
@@ -603,7 +636,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={fetchCommitments}
+            onPress={() => fetchCommitments(true)}
           >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
