@@ -62,154 +62,157 @@ export default function CommitmentsScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch commitments from database
-  const fetchCommitments = useCallback(async (forceRefresh = false) => {
-    try {
-      setLoading(true);
-      setError(null);
+  const fetchCommitments = useCallback(
+    async (forceRefresh = false) => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        setCommitments([]);
-        setLoading(false);
-        return;
-      }
-
-      // Load from cache first if not forcing refresh
-      if (!forceRefresh) {
-        try {
-          const cached = await AsyncStorage.getItem(COMMITMENTS_CACHE_KEY);
-          if (cached) {
-            const cachedCommitments = JSON.parse(cached);
-            setCommitments(cachedCommitments);
-            setLoading(false);
-          }
-        } catch (err) {
-          console.error("Error loading cached commitments:", err);
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          setCommitments([]);
+          setLoading(false);
+          return;
         }
-      }
 
-      // Get commitments from API
-      const dbCommitments = await getMyCommitments(session.access_token);
-
-      // Enrich each commitment with challenge and post data
-      const enrichedCommitments: Commitment[] = [];
-
-      for (const commitment of dbCommitments) {
-        try {
-          // Fetch challenge details
-          const challenge = await getChallenge(
-            session.access_token,
-            commitment.challenge_id
-          );
-
-          // Fetch post/feed data for counts
-          const feedResponse = await getFeed(session.access_token);
-          const post = feedResponse.items.find(
-            (p) => p.challenge_id === commitment.challenge_id
-          );
-
-          // Get challenge owner profile
-          let creatorUsername = "Unknown User";
-          let creatorHandle = "@unknown";
-          let creatorAvatar = `https://i.pravatar.cc/150?img=${Math.floor(
-            Math.random() * 70
-          )}`;
-
+        // Load from cache first if not forcing refresh
+        if (!forceRefresh) {
           try {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("username, full_name")
-              .eq("user_id", challenge.owner_id)
-              .single();
-
-            if (profile) {
-              creatorUsername =
-                profile.full_name || profile.username || "Unknown User";
-              creatorHandle = profile.username
-                ? `@${profile.username}`
-                : "@unknown";
+            const cached = await AsyncStorage.getItem(COMMITMENTS_CACHE_KEY);
+            if (cached) {
+              const cachedCommitments = JSON.parse(cached);
+              setCommitments(cachedCommitments);
+              setLoading(false);
             }
           } catch (err) {
-            console.error("Error fetching creator profile:", err);
+            console.error("Error loading cached commitments:", err);
           }
+        }
 
-          const poolYes = post
-            ? post.for_amount_cents / 100
-            : challenge.amount_cents / 100;
-          const poolNo = post ? post.against_amount_cents / 100 : 0;
-          const participantsYes = post
-            ? post.for_count
-            : commitment.side === "for"
-            ? 1
-            : 0;
-          const participantsNo = post
-            ? post.against_count
-            : commitment.side === "against"
-            ? 1
-            : 0;
+        // Get commitments from API
+        const dbCommitments = await getMyCommitments(session.access_token);
 
-          const totalPool = poolYes + poolNo;
-          const userSidePool = commitment.side === "for" ? poolYes : poolNo;
-          const expectedPayout =
-            userSidePool > 0
-              ? (challenge.amount_cents / 100 / userSidePool) * totalPool
+        // Enrich each commitment with challenge and post data
+        const enrichedCommitments: Commitment[] = [];
+
+        for (const commitment of dbCommitments) {
+          try {
+            // Fetch challenge details
+            const challenge = await getChallenge(
+              session.access_token,
+              commitment.challenge_id
+            );
+
+            // Fetch post/feed data for counts
+            const feedResponse = await getFeed(session.access_token);
+            const post = feedResponse.items.find(
+              (p) => p.challenge_id === commitment.challenge_id
+            );
+
+            // Get challenge owner profile
+            let creatorUsername = "Unknown User";
+            let creatorHandle = "@unknown";
+            let creatorAvatar = `https://i.pravatar.cc/150?img=${Math.floor(
+              Math.random() * 70
+            )}`;
+
+            try {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("username, full_name")
+                .eq("user_id", challenge.owner_id)
+                .single();
+
+              if (profile) {
+                creatorUsername =
+                  profile.full_name || profile.username || "Unknown User";
+                creatorHandle = profile.username
+                  ? `@${profile.username}`
+                  : "@unknown";
+              }
+            } catch (err) {
+              console.error("Error fetching creator profile:", err);
+            }
+
+            const poolYes = post
+              ? post.for_amount_cents / 100
               : challenge.amount_cents / 100;
+            const poolNo = post ? post.against_amount_cents / 100 : 0;
+            const participantsYes = post
+              ? post.for_count
+              : commitment.side === "for"
+              ? 1
+              : 0;
+            const participantsNo = post
+              ? post.against_count
+              : commitment.side === "against"
+              ? 1
+              : 0;
 
-          enrichedCommitments.push({
-            id: commitment.id.toString(),
-            challengeTitle: challenge.title,
-            creator: {
-              username: creatorUsername,
-              handle: creatorHandle,
-              avatar: creatorAvatar,
-            },
-            expiry:
-              challenge.ends_at ||
-              new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-            userChoice: commitment.side === "for" ? "yes" : "no",
-            stake: challenge.amount_cents / 100,
-            poolYes,
-            poolNo,
-            participantsYes,
-            participantsNo,
-            expectedPayout,
-            image: post?.media_url ? getImageUrl(post.media_url) : undefined,
-            updates: [],
-            isExpired: challenge.ends_at
-              ? new Date(challenge.ends_at) < new Date()
-              : false,
-          });
-        } catch (err) {
-          console.error(`Error enriching commitment ${commitment.id}:`, err);
-        }
-      }
+            const totalPool = poolYes + poolNo;
+            const userSidePool = commitment.side === "for" ? poolYes : poolNo;
+            const expectedPayout =
+              userSidePool > 0
+                ? (challenge.amount_cents / 100 / userSidePool) * totalPool
+                : challenge.amount_cents / 100;
 
-      // Only update if data has changed
-      const currentData = JSON.stringify(commitments);
-      const newData = JSON.stringify(enrichedCommitments);
-      
-      if (currentData !== newData) {
-        setCommitments(enrichedCommitments);
-        
-        // Save to cache
-        try {
-          await AsyncStorage.setItem(
-            COMMITMENTS_CACHE_KEY,
-            JSON.stringify(enrichedCommitments)
-          );
-        } catch (err) {
-          console.error("Error saving commitments to cache:", err);
+            enrichedCommitments.push({
+              id: commitment.id.toString(),
+              challengeTitle: challenge.title,
+              creator: {
+                username: creatorUsername,
+                handle: creatorHandle,
+                avatar: creatorAvatar,
+              },
+              expiry:
+                challenge.ends_at ||
+                new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+              userChoice: commitment.side === "for" ? "yes" : "no",
+              stake: challenge.amount_cents / 100,
+              poolYes,
+              poolNo,
+              participantsYes,
+              participantsNo,
+              expectedPayout,
+              image: post?.media_url ? getImageUrl(post.media_url) : undefined,
+              updates: [],
+              isExpired: challenge.ends_at
+                ? new Date(challenge.ends_at) < new Date()
+                : false,
+            });
+          } catch (err) {
+            console.error(`Error enriching commitment ${commitment.id}:`, err);
+          }
         }
+
+        // Only update if data has changed
+        const currentData = JSON.stringify(commitments);
+        const newData = JSON.stringify(enrichedCommitments);
+
+        if (currentData !== newData) {
+          setCommitments(enrichedCommitments);
+
+          // Save to cache
+          try {
+            await AsyncStorage.setItem(
+              COMMITMENTS_CACHE_KEY,
+              JSON.stringify(enrichedCommitments)
+            );
+          } catch (err) {
+            console.error("Error saving commitments to cache:", err);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching commitments:", err);
+        setError("Failed to load commitments");
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Error fetching commitments:", err);
-      setError("Failed to load commitments");
-    } finally {
-      setLoading(false);
-    }
-  }, [commitments]);
+    },
+    [commitments]
+  );
 
   // Helper to get image URL
   const getImageUrl = (mediaUrl: string | null): string | undefined => {

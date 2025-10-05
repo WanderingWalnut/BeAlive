@@ -155,81 +155,87 @@ export default function HomeScreen({ navigation, route }: Props) {
   );
 
   // Fetch posts from backend API
-  const fetchPosts = useCallback(async (forceRefresh = false) => {
-    try {
-      setLoading(true);
-      setError(null);
+  const fetchPosts = useCallback(
+    async (forceRefresh = false) => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      // Get the current session token
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        console.log("No session token, user might not be logged in");
-        setPosts([]);
-        setLoading(false);
-        return;
-      }
+        // Get the current session token
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          console.log("No session token, user might not be logged in");
+          setPosts([]);
+          setLoading(false);
+          return;
+        }
 
-      // Load from cache first if not forcing refresh
-      if (!forceRefresh) {
-        try {
-          const cached = await AsyncStorage.getItem(FEED_CACHE_KEY);
-          if (cached) {
-            const cachedPosts = JSON.parse(cached);
-            setPosts(cachedPosts);
-            setLoading(false);
+        // Load from cache first if not forcing refresh
+        if (!forceRefresh) {
+          try {
+            const cached = await AsyncStorage.getItem(FEED_CACHE_KEY);
+            if (cached) {
+              const cachedPosts = JSON.parse(cached);
+              setPosts(cachedPosts);
+              setLoading(false);
+            }
+          } catch (err) {
+            console.error("Error loading cached feed:", err);
           }
-        } catch (err) {
-          console.error("Error loading cached feed:", err);
         }
-      }
 
-      // Fetch feed from backend
-      const feedResponse = await getFeed(session.access_token);
-      console.log("Fetched feed:", feedResponse);
+        // Fetch feed from backend
+        const feedResponse = await getFeed(session.access_token);
+        console.log("Fetched feed:", feedResponse);
 
-      // For each post, fetch the challenge details and map to SocialPost
-      const socialPosts: SocialPost[] = [];
-      for (const post of feedResponse.items) {
-        try {
-          const challenge = await getChallenge(
-            session.access_token,
-            post.challenge_id
-          );
-          const socialPost = await mapPostToSocialPost(
-            post,
-            challenge,
-            session.access_token
-          );
-          socialPosts.push(socialPost);
-        } catch (err) {
-          console.error(`Error processing post ${post.id}:`, err);
-          // Skip this post if we can't fetch challenge details
+        // For each post, fetch the challenge details and map to SocialPost
+        const socialPosts: SocialPost[] = [];
+        for (const post of feedResponse.items) {
+          try {
+            const challenge = await getChallenge(
+              session.access_token,
+              post.challenge_id
+            );
+            const socialPost = await mapPostToSocialPost(
+              post,
+              challenge,
+              session.access_token
+            );
+            socialPosts.push(socialPost);
+          } catch (err) {
+            console.error(`Error processing post ${post.id}:`, err);
+            // Skip this post if we can't fetch challenge details
+          }
         }
-      }
 
-      // Only update if data has changed
-      const currentData = JSON.stringify(posts);
-      const newData = JSON.stringify(socialPosts);
-      
-      if (currentData !== newData) {
-        setPosts(socialPosts);
-        
-        // Save to cache
-        try {
-          await AsyncStorage.setItem(FEED_CACHE_KEY, JSON.stringify(socialPosts));
-        } catch (err) {
-          console.error("Error saving feed to cache:", err);
+        // Only update if data has changed
+        const currentData = JSON.stringify(posts);
+        const newData = JSON.stringify(socialPosts);
+
+        if (currentData !== newData) {
+          setPosts(socialPosts);
+
+          // Save to cache
+          try {
+            await AsyncStorage.setItem(
+              FEED_CACHE_KEY,
+              JSON.stringify(socialPosts)
+            );
+          } catch (err) {
+            console.error("Error saving feed to cache:", err);
+          }
         }
+      } catch (err) {
+        console.error("Error fetching posts:", err);
+        setError("Failed to load posts. Please try again.");
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Error fetching posts:", err);
-      setError("Failed to load posts. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [mapPostToSocialPost, posts]);
+    },
+    [mapPostToSocialPost, posts]
+  );
 
   // When Home screen receives focus, refresh posts from API
   const applyRouteParams = useCallback(async () => {
@@ -520,7 +526,10 @@ export default function HomeScreen({ navigation, route }: Props) {
             ) : error ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity style={styles.button} onPress={() => fetchPosts(true)}>
+                <TouchableOpacity
+                  style={styles.button}
+                  onPress={() => fetchPosts(true)}
+                >
                   <Text style={styles.buttonText}>Retry</Text>
                 </TouchableOpacity>
               </View>
