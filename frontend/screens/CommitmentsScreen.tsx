@@ -300,39 +300,33 @@ export default function CommitmentsScreen({ navigation }: Props) {
   const renderSummaryCard = () => {
     if (commitments.length === 0) return null;
 
-    const totalCommitted = commitments.reduce(
-      (sum, commitment) => sum + commitment.stake,
-      0
-    );
-    const totalPotentialReturn = commitments.reduce(
-      (sum, commitment) => sum + commitment.expectedPayout,
-      0
-    );
+    const totalCommitments = commitments.length;
     const activeCommitments = commitments.filter(
       (commitment) => !commitment.isExpired
+    ).length;
+    const supportingCount = commitments.filter(
+      (c) => c.userChoice === "yes"
     ).length;
 
     return (
       <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Your Impact</Text>
+        <Text style={styles.summaryTitle}>Your Journey</Text>
         <View style={styles.summaryStats}>
           <View style={styles.summaryStatItem}>
-            <Text style={styles.summaryStatValue}>${totalCommitted}</Text>
-            <Text style={styles.summaryStatLabel}>Total Committed</Text>
+            <Text style={styles.summaryStatValue}>{totalCommitments}</Text>
+            <Text style={styles.summaryStatLabel}>Total Challenges</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryStatItem}>
             <Text style={[styles.summaryStatValue, { color: "#10b981" }]}>
               {activeCommitments}
             </Text>
-            <Text style={styles.summaryStatLabel}>Active Commits</Text>
+            <Text style={styles.summaryStatLabel}>Active Goals</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryStatItem}>
-            <Text style={styles.summaryStatValue}>
-              {commitments.filter((c) => c.userChoice === "yes").length}
-            </Text>
-            <Text style={styles.summaryStatLabel}>Believing In</Text>
+            <Text style={styles.summaryStatValue}>{supportingCount}</Text>
+            <Text style={styles.summaryStatLabel}>Backing Friends</Text>
           </View>
         </View>
       </View>
@@ -384,80 +378,71 @@ export default function CommitmentsScreen({ navigation }: Props) {
             </View>
           </View>
 
-          {/* Challenge Title */}
-          <Text style={styles.challengeTitle} numberOfLines={2}>
-            {item.challengeTitle}
-          </Text>
-
-          {/* Your Commitment */}
-          <View style={styles.positionContainer}>
-            <View style={styles.positionBadge}>
-              <Text style={styles.positionLabel}>YOUR COMMITMENT</Text>
-              <View
-                style={[
-                  styles.positionValue,
-                  item.userChoice === "yes"
-                    ? styles.yesPosition
-                    : styles.noPosition,
-                ]}
-              >
-                <Text style={styles.positionText}>
-                  {item.userChoice === "yes" ? "✓ Supporting" : "✗ Doubtful"}
-                </Text>
-                <Text style={styles.positionAmount}>${item.stake}</Text>
-              </View>
-            </View>
-
-            {!hasExpired && (
-              <View style={styles.returnsContainer}>
-                <Text style={styles.returnsLabel}>If Correct</Text>
-                <Text style={styles.returnsValue}>
-                  ${item.expectedPayout.toFixed(2)}
-                </Text>
-                <Text
-                  style={[
-                    styles.roiText,
-                    stats.roi > 0 ? styles.roiPositive : styles.roiNeutral,
-                  ]}
-                >
-                  {stats.potentialReturn > 0 ? "+$" : ""}
-                  {stats.potentialReturn.toFixed(0)} back
-                </Text>
-              </View>
-            )}
+          {/* Goal Title */}
+          <View style={styles.goalContainer}>
+            <Text style={styles.goalLabel}>Goal</Text>
+            <Text style={styles.challengeTitle} numberOfLines={2}>
+              {item.challengeTitle}
+            </Text>
           </View>
 
-          {/* Community Support Distribution */}
+          {/* Your Role */}
+          <View style={styles.roleContainer}>
+            <Text style={styles.roleLabel}>YOUR ROLE</Text>
+            <View
+              style={[
+                styles.roleValue,
+                item.userChoice === "yes"
+                  ? styles.supportingRole
+                  : styles.challengingRole,
+              ]}
+            >
+              <Text style={styles.roleText}>
+                {item.userChoice === "yes" ? "✓ Supporting" : "⚡ Challenging"}
+              </Text>
+              <View style={styles.roleBadge}>
+                <Text style={styles.roleBadgeText}>
+                  {item.userChoice === "yes" ? "Believer" : "Motivator"}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Community Pulse */}
           {!hasExpired && (
-            <View style={styles.poolDistribution}>
-              <Text style={styles.communityLabel}>Community Support</Text>
-              <View style={styles.poolBar}>
+            <View style={styles.communityPulse}>
+              <Text style={styles.communityLabel}>Community Pulse</Text>
+              <View style={styles.pulseBar}>
                 <View
                   style={[
-                    styles.poolBarYes,
+                    styles.pulseBarFill,
                     { width: `${stats.userSidePercent}%` },
                   ]}
                 />
               </View>
-              <View style={styles.poolLabels}>
-                <View style={styles.poolLabelItem}>
+              <View style={styles.pulseLabels}>
+                <View style={styles.pulseLabelItem}>
                   <View
-                    style={[styles.poolDot, { backgroundColor: "#10b981" }]}
+                    style={[styles.pulseDot, { backgroundColor: "#10b981" }]}
                   />
-                  <Text style={styles.poolLabelText}>
-                    Believing: ${stats.userSidePool} ({stats.userSidePercent}%)
+                  <Text style={styles.pulseLabelText}>
+                    Supporting: {item.participantsYes} ({stats.userSidePercent}
+                    %)
                   </Text>
                 </View>
-                <View style={styles.poolLabelItem}>
+                <View style={styles.pulseLabelItem}>
                   <View
-                    style={[styles.poolDot, { backgroundColor: "#ef4444" }]}
+                    style={[styles.pulseDot, { backgroundColor: "#f59e0b" }]}
                   />
-                  <Text style={styles.poolLabelText}>
-                    Skeptical: ${stats.otherSidePool} (
+                  <Text style={styles.pulseLabelText}>
+                    Challenging: {item.participantsNo} (
                     {100 - stats.userSidePercent}%)
                   </Text>
                 </View>
               </View>
+              <Text style={styles.communityEncouragement}>
+                Friends are keeping each other accountable
+              </Text>
             </View>
           )}
 
@@ -466,49 +451,48 @@ export default function CommitmentsScreen({ navigation }: Props) {
             <View
               style={[
                 styles.outcomeContainer,
-                userWon ? styles.outcomeWin : styles.outcomeLoss,
+                userWon ? styles.outcomeSuccess : styles.outcomeComplete,
               ]}
             >
               <View style={styles.outcomeContent}>
                 <IconButton
-                  icon={userWon ? "check-circle" : "close-circle"}
+                  icon={userWon ? "star-circle" : "check-circle"}
                   size={24}
-                  iconColor={userWon ? "#10b981" : "#ef4444"}
+                  iconColor={userWon ? "#10b981" : "#6B8AFF"}
                   style={styles.outcomeIcon}
                 />
                 <View style={styles.outcomeTextContainer}>
                   <Text
                     style={[
                       styles.outcomeText,
-                      { color: userWon ? "#10b981" : "#ef4444" },
+                      { color: userWon ? "#10b981" : "#6B8AFF" },
                     ]}
                   >
-                    {userWon ? "You Were Right!" : "Challenge Completed"}
+                    {userWon ? "Goal Achieved!" : "Challenge Completed"}
                   </Text>
-                  {userWon && (
-                    <Text style={styles.outcomeAmount}>
-                      Received ${item.expectedPayout.toFixed(2)}
-                    </Text>
-                  )}
-                  {!userWon && (
-                    <Text style={styles.outcomeSubtext}>
-                      Your support made a difference
-                    </Text>
-                  )}
-                  {/* Distribution breakdown */}
+                  <Text style={styles.outcomeSubtext}>
+                    {userWon
+                      ? "Your belief in them was spot on!"
+                      : "Every step forward counts"}
+                  </Text>
+                  {/* Impact breakdown */}
                   {hasExpired && (
-                    <View style={styles.distributionContainer}>
-                      <Text style={styles.distributionTitle}>Distribution</Text>
-                      <Text style={styles.distributionText}>
-                        Total pool: ${(item.poolYes + item.poolNo).toFixed(2)}
+                    <View style={styles.impactContainer}>
+                      <Text style={styles.impactTitle}>Community Impact</Text>
+                      <Text style={styles.impactText}>
+                        {item.participantsYes + item.participantsNo} friends
+                        stayed engaged
                       </Text>
-                      <Text style={styles.distributionText}>
-                        Believing: ${item.poolYes} • Skeptical: ${item.poolNo}
+                      <Text style={styles.impactText}>
+                        Supporting: {item.participantsYes} • Challenging:{" "}
+                        {item.participantsNo}
                       </Text>
                       {item.outcome && (
-                        <Text style={styles.distributionText}>
-                          Winners ({item.outcome}): share distributed
-                          accordingly
+                        <Text style={styles.impactText}>
+                          Outcome:{" "}
+                          {item.outcome === "yes"
+                            ? "Goal achieved"
+                            : "Goal not met"}
                         </Text>
                       )}
                     </View>
@@ -540,22 +524,24 @@ export default function CommitmentsScreen({ navigation }: Props) {
               {/* Challenge Stats */}
               <View style={styles.statsGrid}>
                 <View style={styles.statBox}>
-                  <Text style={styles.statValue}>${stats.totalPool}</Text>
-                  <Text style={styles.statLabel}>Total Committed</Text>
-                </View>
-                <View style={styles.statBox}>
                   <Text style={styles.statValue}>
                     {item.participantsYes + item.participantsNo}
                   </Text>
-                  <Text style={styles.statLabel}>Friends Supporting</Text>
+                  <Text style={styles.statLabel}>Friends Engaged</Text>
                 </View>
                 <View style={styles.statBox}>
                   <Text style={styles.statValue}>{item.participantsYes}</Text>
-                  <Text style={styles.statLabel}>Believing</Text>
+                  <Text style={styles.statLabel}>Supporting</Text>
                 </View>
                 <View style={styles.statBox}>
                   <Text style={styles.statValue}>{item.participantsNo}</Text>
-                  <Text style={styles.statLabel}>Skeptical</Text>
+                  <Text style={styles.statLabel}>Challenging</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>
+                    {item.updates ? item.updates.length : 0}
+                  </Text>
+                  <Text style={styles.statLabel}>Progress Updates</Text>
                 </View>
               </View>
 
@@ -605,15 +591,15 @@ export default function CommitmentsScreen({ navigation }: Props) {
           style={styles.emptyIcon}
         />
       </View>
-      <Text style={styles.emptyTitle}>No Active Commitments</Text>
+      <Text style={styles.emptyTitle}>Start Your Journey</Text>
       <Text style={styles.emptyText}>
-        Commit to friends' goals and help them stay accountable
+        Support your friends' goals and help each other stay accountable
       </Text>
       <TouchableOpacity
         style={styles.emptyButton}
         onPress={() => navigation.replace("Home", {} as any)}
       >
-        <Text style={styles.emptyButtonText}>Find Friends</Text>
+        <Text style={styles.emptyButtonText}>Explore Challenges</Text>
       </TouchableOpacity>
     </View>
   );
@@ -624,7 +610,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
         <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#6B8AFF" />
-          <Text style={styles.loadingText}>Loading commitments...</Text>
+          <Text style={styles.loadingText}>Loading your journey...</Text>
         </View>
         <BottomNavigation currentIndex={index} onTabPress={handleTabPress} />
       </SafeAreaView>
@@ -641,7 +627,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
             style={styles.retryButton}
             onPress={() => fetchCommitments(true)}
           >
-            <Text style={styles.retryButtonText}>Retry</Text>
+            <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
         <BottomNavigation currentIndex={index} onTabPress={handleTabPress} />
@@ -708,11 +694,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
     borderColor: "#E0E5ED",
-    shadowColor: "#6B8AFF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowColor: "#10b981",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   summaryTitle: {
     color: "#1A1D2E",
@@ -798,21 +784,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  distributionContainer: {
-    marginTop: 12,
-    padding: 10,
-    backgroundColor: "#f3f4f6",
+  impactContainer: {
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: "#F8FAFB",
     borderRadius: 8,
   },
-  distributionTitle: {
-    fontSize: 13,
+  impactTitle: {
+    fontSize: 12,
     fontWeight: "700",
     color: "#1A1D2E",
     marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  distributionText: {
-    fontSize: 13,
-    color: "#4B5563",
+  impactText: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 3,
   },
   creatorHandle: {
     color: "#9CA3AF",
@@ -827,142 +816,139 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
   },
+  goalContainer: {
+    marginBottom: 12,
+  },
+  goalLabel: {
+    color: "#9CA3AF",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+    textTransform: "uppercase",
+  },
   challengeTitle: {
     color: "#1A1D2E",
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
-    lineHeight: 22,
+    lineHeight: 24,
+  },
+  roleContainer: {
     marginBottom: 16,
   },
-  positionContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  positionBadge: {
-    flex: 1,
-    marginRight: 12,
-  },
-  positionLabel: {
+  roleLabel: {
     color: "#9CA3AF",
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.5,
     marginBottom: 8,
   },
-  positionValue: {
+  roleValue: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
-  yesPosition: {
-    backgroundColor: "#10b98120",
+  supportingRole: {
+    backgroundColor: "#10b98115",
+    borderWidth: 1,
+    borderColor: "#10b98130",
   },
-  noPosition: {
-    backgroundColor: "#ef444420",
+  challengingRole: {
+    backgroundColor: "#f59e0b15",
+    borderWidth: 1,
+    borderColor: "#f59e0b30",
   },
-  positionText: {
-    fontSize: 14,
-    fontWeight: "700",
+  roleText: {
+    fontSize: 15,
+    fontWeight: "600",
     color: "#1A1D2E",
   },
-  positionAmount: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#1A1D2E",
+  roleBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "#F8FAFB",
   },
-  returnsContainer: {
-    flex: 1,
-    alignItems: "flex-end",
-  },
-  returnsLabel: {
-    color: "#9CA3AF",
-    fontSize: 10,
+  roleBadgeText: {
+    fontSize: 12,
     fontWeight: "600",
-    marginBottom: 4,
+    color: "#6B8AFF",
   },
-  returnsValue: {
-    color: "#10b981",
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 2,
-  },
-  roiText: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  roiPositive: {
-    color: "#10b981",
-  },
-  roiNeutral: {
-    color: "#9CA3AF",
-  },
-  poolDistribution: {
+  communityPulse: {
     marginBottom: 16,
   },
   communityLabel: {
     color: "#9CA3AF",
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "700",
     marginBottom: 8,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  poolBar: {
-    height: 6,
-    backgroundColor: "#ef444420",
-    borderRadius: 3,
+  pulseBar: {
+    height: 8,
+    backgroundColor: "#f59e0b20",
+    borderRadius: 4,
     overflow: "hidden",
     marginBottom: 8,
   },
-  poolBarYes: {
+  pulseBarFill: {
     height: "100%",
     backgroundColor: "#10b981",
-    borderRadius: 3,
+    borderRadius: 4,
   },
-  poolLabels: {
+  pulseLabels: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginBottom: 8,
   },
-  poolLabelItem: {
+  pulseLabelItem: {
     flexDirection: "row",
     alignItems: "center",
   },
-  poolDot: {
+  pulseDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     marginRight: 6,
   },
-  poolLabelText: {
-    color: "#9CA3AF",
+  pulseLabelText: {
+    color: "#6B7280",
     fontSize: 11,
     fontWeight: "500",
   },
+  communityEncouragement: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    fontStyle: "italic",
+    textAlign: "center",
+    marginTop: 4,
+  },
   outcomeContainer: {
     borderRadius: 12,
-    padding: 12,
+    padding: 14,
     marginBottom: 12,
   },
-  outcomeWin: {
-    backgroundColor: "#10b98115",
+  outcomeSuccess: {
+    backgroundColor: "#10b98112",
     borderWidth: 1,
-    borderColor: "#10b98140",
+    borderColor: "#10b98130",
   },
-  outcomeLoss: {
-    backgroundColor: "#ef444415",
+  outcomeComplete: {
+    backgroundColor: "#6B8AFF12",
     borderWidth: 1,
-    borderColor: "#ef444440",
+    borderColor: "#6B8AFF30",
   },
   outcomeContent: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
   },
   outcomeIcon: {
     margin: 0,
+    marginTop: -2,
   },
   outcomeTextContainer: {
     flex: 1,
@@ -970,17 +956,13 @@ const styles = StyleSheet.create({
   outcomeText: {
     fontSize: 16,
     fontWeight: "700",
-    marginBottom: 2,
-  },
-  outcomeAmount: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#10b981",
+    marginBottom: 4,
   },
   outcomeSubtext: {
     fontSize: 13,
-    color: "#9CA3AF",
+    color: "#6B7280",
     fontWeight: "500",
+    marginBottom: 8,
   },
   expandToggle: {
     flexDirection: "row",
