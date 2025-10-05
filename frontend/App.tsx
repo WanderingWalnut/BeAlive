@@ -1,22 +1,22 @@
-import * as React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Provider as PaperProvider } from 'react-native-paper';
-import { theme } from './theme';
-import { CommitmentsProvider } from './contexts/CommitmentsContext';
-import { AuthProvider } from './providers/AuthProvider';
+import * as React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { Provider as PaperProvider } from "react-native-paper";
+import { theme } from "./theme";
+import { CommitmentsProvider } from "./contexts/CommitmentsContext";
+import { AuthProvider } from "./providers/AuthProvider";
 
-import SplashScreen from './screens/SplashScreen';
-import LoginScreen from './screens/LoginScreen';
-import OTPScreen from './screens/OTPScreen';
-import ProfileSetup from './screens/ProfileSetup';
-import UsernameScreen from './screens/UsernameScreen';
-import ContactsScreen from './screens/ContactsScreen';
-import SharingSettingsScreen from './screens/SharingSettingsScreen';
-import HomeScreen from './screens/HomeScreen';
-import ChallengeCreationScreen from './screens/ChallengeCreationScreen';
-import CommitmentsScreen from './screens/CommitmentsScreen';
-import ProfileScreen from './screens/ProfileScreen';
+import SplashScreen from "./screens/SplashScreen";
+import LoginScreen from "./screens/LoginScreen";
+import OTPScreen from "./screens/OTPScreen";
+import ProfileSetup from "./screens/ProfileSetup";
+import UsernameScreen from "./screens/UsernameScreen";
+import ContactsScreen from "./screens/ContactsScreen";
+import SharingSettingsScreen from "./screens/SharingSettingsScreen";
+import HomeScreen from "./screens/HomeScreen";
+import ChallengeCreationScreen from "./screens/ChallengeCreationScreen";
+import CommitmentsScreen from "./screens/CommitmentsScreen";
+import ProfileScreen from "./screens/ProfileScreen";
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -69,30 +69,36 @@ export default function App() {
       <CommitmentsProvider>
         <PaperProvider theme={theme}>
           <NavigationContainer>
-            <Stack.Navigator 
-            initialRouteName="Splash" 
-            screenOptions={{ 
-              headerShown: false,
-              animation: 'none',
-              animationTypeForReplace: 'push',
-              gestureEnabled: false,
-            }}
-          >
-            <Stack.Screen name="Splash" component={SplashScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="OTP" component={OTPScreen} />
-            <Stack.Screen name="ProfileSetup" component={ProfileSetup} />
-            <Stack.Screen name="Username" component={UsernameScreen} />
-            <Stack.Screen name="Contacts" component={ContactsScreen} />
-            <Stack.Screen name="SharingSettings" component={SharingSettingsScreen} />
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="ChallengeCreation" component={ChallengeCreationScreen} />
-            <Stack.Screen name="Commitments" component={CommitmentsScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </PaperProvider>
-    </CommitmentsProvider>
+            <Stack.Navigator
+              initialRouteName="Splash"
+              screenOptions={{
+                headerShown: false,
+                animation: "none",
+                animationTypeForReplace: "push",
+                gestureEnabled: false,
+              }}
+            >
+              <Stack.Screen name="Splash" component={SplashScreen} />
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="OTP" component={OTPScreen} />
+              <Stack.Screen name="ProfileSetup" component={ProfileSetup} />
+              <Stack.Screen name="Username" component={UsernameScreen} />
+              <Stack.Screen name="Contacts" component={ContactsScreen} />
+              <Stack.Screen
+                name="SharingSettings"
+                component={SharingSettingsScreen}
+              />
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen
+                name="ChallengeCreation"
+                component={ChallengeCreationScreen}
+              />
+              <Stack.Screen name="Commitments" component={CommitmentsScreen} />
+              <Stack.Screen name="Profile" component={ProfileScreen} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </PaperProvider>
+      </CommitmentsProvider>
     </AuthProvider>
   );
 }
