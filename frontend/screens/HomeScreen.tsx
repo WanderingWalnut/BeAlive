@@ -162,6 +162,20 @@ export default function HomeScreen({ navigation, route }: Props) {
     }
   }, [navigation, route.params, posts, user]);
 
+  // Dev helper: reset AsyncStorage keys we use and clear local state
+  const handleResetStorage = async () => {
+    try {
+      await AsyncStorage.removeItem('userPosts');
+      await AsyncStorage.removeItem('userChallenges');
+      setPosts([]);
+      Alert.alert('Storage Reset', 'Cleared userPosts and userChallenges from AsyncStorage.');
+      console.log('AsyncStorage keys userPosts and userChallenges removed');
+    } catch (err) {
+      console.error('Error clearing AsyncStorage:', err);
+      Alert.alert('Error', 'Failed to clear storage. Check console for details.');
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       applyRouteParams();
@@ -313,7 +327,14 @@ export default function HomeScreen({ navigation, route }: Props) {
       {/* Main Content */}
       <View style={styles.mainContent}>
         {index === 0 && (
-          <FlatList
+          <>
+            <TouchableOpacity
+              style={[styles.resetButton]}
+              onPress={handleResetStorage}
+            >
+              <Text style={styles.resetButtonText}>Reset Storage</Text>
+            </TouchableOpacity>
+            <FlatList
             data={posts}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
@@ -327,6 +348,7 @@ export default function HomeScreen({ navigation, route }: Props) {
             contentContainerStyle={styles.feedContainer}
             showsVerticalScrollIndicator={false}
           />
+          </>
         )}
 
       </View>
@@ -357,6 +379,18 @@ const styles = StyleSheet.create({
   },
   feedContainer: {
     paddingBottom: 80,
+  },
+  resetButton: {
+    backgroundColor: '#EFEFEF',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-end',
+    borderRadius: 6,
+    margin: 12,
+  },
+  resetButtonText: {
+    color: '#111827',
+    fontSize: 12,
   },
   emptyContainer: {
     flex: 1,

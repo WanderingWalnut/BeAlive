@@ -95,7 +95,6 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
         const challengeId = Date.now().toString();
         const newChallenge = {
           title: title.trim(),
-          description: description.trim(),
           stake: 5, // Fixed commit amount
           expiryDays: parseInt(expiryDays) || 7,
           expiryHours: parseInt(expiryHours) || 0,
@@ -350,20 +349,7 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
                   <Text style={styles.characterCount}>{title.length}/100</Text>
                 </View>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Description</Text>
-                  <TextInput
-                    value={description}
-                    onChangeText={setDescription}
-                    placeholder="Add more details about your challenge..."
-                    placeholderTextColor="#6b7280"
-                    style={[styles.input, styles.textArea]}
-                    multiline
-                    numberOfLines={4}
-                    maxLength={500}
-                  />
-                  <Text style={styles.characterCount}>{description.length}/500</Text>
-                </View>
+                {/* Description input is only needed when posting updates; hide for new challenge */}
               </View>
             ) : (
               /* Update Challenge Form */
