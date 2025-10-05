@@ -1,17 +1,14 @@
 import React, { useMemo, useState } from "react";
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
   StyleSheet,
-  ActivityIndicator,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Text, TextInput, Button, Card } from "react-native-paper";
 import { RootStackParamList } from "../App";
 import { supabase } from "../lib/supabase";
 
@@ -71,40 +68,62 @@ export default function LoginScreen({ navigation }: Props) {
             <Text style={styles.tagline}>Bet on everyday life — with friends.</Text>
           </View>
 
-          {/* Form */}
-          <View style={styles.form}>
-            <Text style={styles.label}>Phone number</Text>
-            <TextInput
-              value={phone}
-              onChangeText={onChange}
-              placeholder="+1 555 555 5555"
-              placeholderTextColor="#9aa3af"
-              keyboardType="phone-pad"
-              returnKeyType="done"
-              autoCapitalize="none"
-              autoCorrect={false}
-              textContentType="telephoneNumber"
-              style={[styles.input, !!error && styles.inputError]}
-              maxLength={18} // room for spaces; regex strips them
-            />
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              {/* Form */}
+              <Card style={styles.formCard}>
+                <Card.Content>
+                  <TextInput
+                    label="Phone number"
+                    value={phone}
+                    onChangeText={onChange}
+                    placeholder="+1 555 555 5555"
+                    keyboardType="phone-pad"
+                    returnKeyType="done"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="telephoneNumber"
+                    mode="outlined"
+                    error={!!error}
+                    maxLength={18}
+                    style={styles.input}
+                  />
+                  {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <TouchableOpacity
-              onPress={onSendCode}
-              disabled={!isValid || loading}
-              style={[styles.cta, (!isValid || loading) && styles.ctaDisabled]}
-              activeOpacity={0.9}
+                  <Button
+                    mode="contained"
+                    onPress={onSendCode}
+                    disabled={!isValid || loading}
+                    loading={loading}
+                    style={styles.cta}
+                    contentStyle={styles.ctaContent}
+                  >
+                    Send code
+                  </Button>
+
+                  <Text style={styles.helper}>
+                    We'll text you a 6-digit code to verify your number.
+                  </Text>
+                </Card.Content>
+              </Card>
+
+          {/* Skip to Home (Development) */}
+          <View style={styles.skipContainer}>
+            <Button
+              mode="outlined"
+              onPress={() => navigation.navigate('Home', { 
+                user: {
+                  id: 'dev-user',
+                  phone_number: '+1234567890',
+                  first_name: 'Dev',
+                  last_name: 'User',
+                  created_at: new Date().toISOString()
+                }
+              })}
+              style={styles.skipButton}
+              icon="rocket-launch"
             >
-              {loading ? (
-                <ActivityIndicator />
-              ) : (
-                <Text style={styles.ctaText}>Send code</Text>
-              )}
-            </TouchableOpacity>
-
-            <Text style={styles.helper}>
-              We’ll text you a 6-digit code to verify your number.
-            </Text>
+              Skip to Home
+            </Button>
+            <Text style={styles.skipHelper}>Quick access for development</Text>
           </View>
 
           {/* Footer */}
@@ -127,33 +146,42 @@ const styles = StyleSheet.create({
   appName: { fontSize: 40, fontWeight: "800", color: "#fff", letterSpacing: 0.5 },
   tagline: { fontSize: 16, color: "#a3a3a3" },
 
-  form: { gap: 12 },
-  label: { color: "#e5e7eb", fontSize: 14, marginBottom: 4 },
-  input: {
-    height: 52,
-    borderRadius: 14,
-    paddingHorizontal: 16,
+  formCard: {
     backgroundColor: "#141419",
-    borderWidth: 1,
-    borderColor: "#262635",
-    color: "#fff",
-    fontSize: 16,
+    marginBottom: 20,
   },
-  inputError: { borderColor: "#ef4444" },
-  errorText: { color: "#ef4444", marginTop: -4, marginBottom: 4 },
-
+  input: {
+    marginBottom: 16,
+  },
+  errorText: { 
+    color: "#ef4444", 
+    marginTop: -8, 
+    marginBottom: 8,
+    fontSize: 12,
+  },
   cta: {
-    height: 54,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#4f46e5",
-    marginTop: 6,
+    marginTop: 8,
   },
-  ctaDisabled: { opacity: 0.6 },
-  ctaText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  ctaContent: {
+    paddingVertical: 8,
+  },
 
   helper: { color: "#9aa3af", textAlign: "center", marginTop: 8 },
+
+  skipContainer: { 
+    alignItems: "center", 
+    marginTop: 24,
+    paddingVertical: 16,
+  },
+  skipButton: {
+    marginBottom: 8,
+  },
+  skipHelper: {
+    color: "#9ca3af",
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: "center",
+  },
 
   footer: { alignItems: "center" },
   footerText: { color: "#6b7280", fontSize: 12, textAlign: "center" },

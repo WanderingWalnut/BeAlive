@@ -10,7 +10,7 @@ import { supabase } from "../lib/supabase";
 type Props = NativeStackScreenProps<RootStackParamList, "OTP">;
 
 export default function OTPScreen({ route, navigation }: Props) {
-  const { phone } = route.params;
+  const { phone, isSignup = false } = route.params;
   const [code, setCode] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,9 +37,12 @@ export default function OTPScreen({ route, navigation }: Props) {
       // Session is now active; you can read it or just continue
       // const { data: sessionData } = await supabase.auth.getSession();
 
-      // If this is the user's first time, you could branch to profile setup.
-      // For now, go straight to Home:
-      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+      // If this is signup, go to username screen; otherwise go to home
+      if (isSignup) {
+        navigation.navigate("Username", { phone });
+      } else {
+        navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+      }
     } catch (e: any) {
       setErr(e?.message ?? "Invalid or expired code.");
     } finally {
