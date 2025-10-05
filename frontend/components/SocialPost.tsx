@@ -77,6 +77,22 @@ export default function SocialPost({
     if (diffHours > 0) return `${diffHours}h left`;
     return 'Ending soon';
   };
+
+  // Format timestamps for display; accept ISO strings or friendly labels like 'Just now'
+  const formatTimestamp = (ts: string | undefined) => {
+    if (!ts) return '';
+    // If it's not a parseable date, return as-is (handles 'Just now')
+    if (isNaN(Date.parse(ts))) return ts;
+    try {
+      const d = new Date(ts);
+      const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      return `${date} • ${time}`;
+    } catch (e) {
+      return ts;
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -91,7 +107,7 @@ export default function SocialPost({
               <Text style={styles.username}>{username}</Text>
               {verified && <Text style={styles.verified}>✓</Text>}
               <Text style={styles.handle}>{handle}</Text>
-              <Text style={styles.timestamp}>• {timestamp}</Text>
+              <Text style={styles.timestamp}>• {formatTimestamp(timestamp)}</Text>
             </View>
             {expiry && (
               <View style={styles.expiryRow}>
@@ -114,9 +130,9 @@ export default function SocialPost({
       {updates && updates.length > 0 && (
         <View style={styles.updatesContainer}>
           <Text style={styles.updatesTitle}>Updates</Text>
-          {updates.map((update, index) => (
+          {updates.map((update) => (
             <View key={update.id} style={styles.update}>
-              <Text style={styles.updateTimestamp}>{update.timestamp}</Text>
+              <Text style={styles.updateTimestamp}>{formatTimestamp(update.timestamp)}</Text>
               <Text style={styles.updateContent}>{update.content}</Text>
               {update.image && (
                 <Image source={{ uri: update.image }} style={styles.updateImage} />
