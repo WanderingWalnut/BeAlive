@@ -4,11 +4,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { theme } from './theme';
 import { CommitmentsProvider } from './contexts/CommitmentsContext';
+import { AuthProvider } from './providers/AuthProvider';
 
 import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
-import SignupScreen from './screens/SignupScreen';
 import OTPScreen from './screens/OTPScreen';
+import ProfileSetup from './screens/ProfileSetup';
 import UsernameScreen from './screens/UsernameScreen';
 import ContactsScreen from './screens/ContactsScreen';
 import SharingSettingsScreen from './screens/SharingSettingsScreen';
@@ -20,13 +21,13 @@ import ProfileScreen from './screens/ProfileScreen';
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
-  Signup: undefined;
   OTP: {
     phone: string;
     isSignup?: boolean;
     firstName?: string;
     lastName?: string;
   };
+  ProfileSetup: undefined;
   Username: {
     phone: string;
   };
@@ -64,10 +65,11 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
-    <CommitmentsProvider>
-      <PaperProvider theme={theme}>
-        <NavigationContainer>
-          <Stack.Navigator 
+    <AuthProvider>
+      <CommitmentsProvider>
+        <PaperProvider theme={theme}>
+          <NavigationContainer>
+            <Stack.Navigator 
             initialRouteName="Splash" 
             screenOptions={{ 
               headerShown: false,
@@ -78,8 +80,8 @@ export default function App() {
           >
             <Stack.Screen name="Splash" component={SplashScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
             <Stack.Screen name="OTP" component={OTPScreen} />
+            <Stack.Screen name="ProfileSetup" component={ProfileSetup} />
             <Stack.Screen name="Username" component={UsernameScreen} />
             <Stack.Screen name="Contacts" component={ContactsScreen} />
             <Stack.Screen name="SharingSettings" component={SharingSettingsScreen} />
@@ -91,5 +93,6 @@ export default function App() {
         </NavigationContainer>
       </PaperProvider>
     </CommitmentsProvider>
+    </AuthProvider>
   );
 }
