@@ -32,6 +32,13 @@ class ProfileBase(BaseModel):
     avatar_url: Optional[str] = None
 
 
+class ProfileCreate(BaseModel):
+    user_id: UUID
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
 class ProfileUpdate(ProfileBase):
     pass
 

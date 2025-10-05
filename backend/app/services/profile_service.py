@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Optional
 from uuid import UUID
 
 from pydantic import TypeAdapter
@@ -33,4 +33,48 @@ class ProfileService:
         adapter = TypeAdapter(list[ProfileOut])
         profiles = adapter.validate_python(rows)
         return {p.user_id: p for p in profiles}
+
+    def upsert_profile(
+        self,
+        *,
+        user_id: UUID,
+        username: Optional[str] = None,
+        full_name: Optional[str] = None,
+        avatar_url: Optional[str] = None,
+    ) -> ProfileOut:
+        """Create or update a profile row for the given user.
+
+        This writes directly to public.profiles. It stores the avatar as a storage key/path
+        (not a signed URL). The caller is responsible for validating user permissions.
+        """
+        upsert_data: Dict[str, Optional[str]] = {
+            "user_id": str(user_id),
+        }
+        if username is not None:
+            upsert_data["username"] = username
+        if full_name is not None:
+            upsert_data["full_name"] = full_name
+        if avatar_url is not None:
+            upsert_data["avatar_url"] = avatar_url
+
+        resp = (
+            self.client
+            .table("profiles")
+            .upsert(upsert_data, on_conflict="user_id")
+            .select("*")
+            .eq("user_id", str(user_id))
+            .limit(1)
+            .execute()
+        )
+        rows = getattr(resp, "data", None) or []
+        row = rows[0] if isinstance(rows, list) and rows else None
+        if not row:
+            # Try fetch fresh in rare cases where select didn't return
+            fetch = (
+                self.client.table("profiles").select("*").eq("user_id", str(user_id)).limit(1).execute()
+            )
+            rows2 = getattr(fetch, "data", None) or []
+            row = rows2[0] if isinstance(rows2, list) and rows2 else None
+        adapter = TypeAdapter(ProfileOut)
+        return adapter.validate_python(row)
 

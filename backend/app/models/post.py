@@ -5,6 +5,8 @@ from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
+from .challenge import ChallengeCreate
+from .common import ProfileOut
 
 
 class PostCreate(BaseModel):
@@ -43,3 +45,32 @@ class FeedParams(BaseModel):
 
 FeedItem = PostWithCounts
 
+
+class CreatePostRequest(BaseModel):
+    """Create a post, optionally creating a new challenge atomically.
+
+    Provide either `challenge_id` OR `new_challenge`. If both are provided, `challenge_id` is used.
+    """
+    challenge_id: Optional[int] = None
+    new_challenge: Optional[ChallengeCreate] = None
+    caption: Optional[str] = None
+    media_url: Optional[str] = None
+
+
+class PostFull(PostWithCounts):
+    """Post + aggregates + author profile."""
+    author_profile: Optional[ProfileOut] = None
+
+
+# Ensure forward refs are resolved (pydantic v2)
+PostWithCounts.model_rebuild()
+PostFull.model_rebuild()
+
+
+class PostMediaUpdate(BaseModel):
+    media_url: str
+
+
+class FeedResponse(BaseModel):
+    items: list[PostWithCounts]
+    next_cursor: Optional[datetime] = None
