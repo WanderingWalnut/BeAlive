@@ -247,6 +247,14 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 14,
   },
+  expiryRow: {
+    marginTop: 4,
+  },
+  expiryText: {
+    color: '#6B8AFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   content: {
     paddingHorizontal: 16,
     paddingBottom: 12,
