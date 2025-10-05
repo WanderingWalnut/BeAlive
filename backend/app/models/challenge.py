@@ -42,3 +42,11 @@ class ChallengeStats(BaseModel):
     against_count: int
     for_amount_cents: int
     against_amount_cents: int
+
+
+class ChallengeDetail(ChallengeOut):
+    """Challenge with aggregated stats fields."""
+    for_count: int
+    against_count: int
+    for_amount_cents: int
+    against_amount_cents: int

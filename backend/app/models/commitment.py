@@ -22,3 +22,8 @@ class CommitmentOut(BaseModel):
     side: CommitmentSide
     created_at: datetime
 
+
+class CommitmentRequest(BaseModel):
+    """Request to create a commitment for a challenge."""
+    direction: CommitmentSide
+    idempotency_key: str | None = None

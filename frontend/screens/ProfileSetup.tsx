@@ -22,6 +22,8 @@ import { RootStackParamList } from "../App";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../providers/AuthProvider";
 import { useMe } from "../hooks/useMe";
+import * as FileSystem from "expo-file-system";
+import { decode as decodeBase64 } from "base64-arraybuffer";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ProfileSetup">;
 
@@ -48,6 +50,9 @@ export default function ProfileSetup({ navigation }: Props) {
 
   const [uFocused, setUFocused] = useState(false);
   const [nFocused, setNFocused] = useState(false);
+
+  const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
+  const [avatarType, setAvatarType] = useState<string>("image/jpeg");
 
   const valid = useMemo(() => username.trim().length >= 3, [username]);
   const handlePreview = useMemo(
@@ -200,68 +205,124 @@ export default function ProfileSetup({ navigation }: Props) {
   const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm.status !== "granted") return;
+
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.9,
+      base64: true, // ✅ get base64 directly (no FileSystem needed)
+      exif: false,
     });
     if (res.canceled) return;
-    const uri = res.assets?.[0]?.uri;
-    if (uri) setAvatar(uri);
+
+    const asset = res.assets?.[0];
+    if (!asset) return;
+
+    // Keep these in state
+    setAvatar(asset.uri); // for preview
+    // also store base64 and mime in refs/state (add these two state vars)
+    setAvatarBase64(asset.base64 || null);
+    setAvatarType(asset.mimeType || "image/jpeg");
   };
 
   const onSave = async () => {
     try {
-      if (!accessToken) throw new Error("Not authenticated");
       setLoading(true);
+
+      // 0) Get current user ID
+      const {
+        data: { user },
+        error: userErr,
+      } = await supabase.auth.getUser();
+      if (userErr) throw userErr;
+      const uid = user?.id;
+      if (!uid) throw new Error("No authenticated user");
 
       const uname = username.trim();
       const fname = fullName.trim();
-      let avatar_key: string | undefined; // storage key we’ll store in DB
 
-      if (avatar) {
-        // 1) Upload avatar to a dedicated bucket
-        const { data: u } = await supabase.auth.getUser();
-        const userId = u.user?.id;
-        if (!userId) throw new Error("No user");
+      // 1) Upload avatar (optional)
+      let avatar_key: string | null = null;
 
-        const key = `avatars/${userId}/${Date.now()}.jpg`;
+      if (avatar && avatarBase64) {
+        const ext = avatarType.includes("png")
+          ? "png"
+          : avatarType.includes("webp")
+          ? "webp"
+          : "jpg";
+        const key = `${uid}/${Date.now()}.${ext}`;
 
-        // RN-friendly upload (no fetch().blob())
-        const file = {
-          uri: avatar,
-          name: "avatar.jpg",
-          type: "image/jpeg",
-        } as any;
+        // Convert base64 -> ArrayBuffer
+        const arrayBuffer = decodeBase64(avatarBase64);
+
+        // Upload to Supabase storage
         const { error: upErr } = await supabase.storage
           .from("avatars")
-          .upload(key, file, { upsert: true });
-        if (upErr) throw upErr;
+          .upload(key, arrayBuffer, {
+            contentType: avatarType || "image/jpeg",
+            upsert: true,
+          });
+
+        if (upErr) {
+          console.log("Avatar upload error:", upErr);
+          throw upErr;
+        }
+
+        avatar_key = key; // Store storage key (not full URL)
+      } else if (avatar && !avatarBase64) {
+        // Fallback: read file manually (rarely needed)
+        const base64 = await FileSystem.readAsStringAsync(avatar, {
+          encoding: "base64",
+        });
+        const arrayBuffer = decodeBase64(base64);
+        const key = `${uid}/${Date.now()}.jpg`;
+
+        const { error: upErr } = await supabase.storage
+          .from("avatars")
+          .upload(key, arrayBuffer, {
+            contentType: "image/jpeg",
+            upsert: true,
+          });
+
+        if (upErr) {
+          console.log("Avatar upload error:", upErr);
+          throw upErr;
+        }
 
         avatar_key = key;
       }
 
-      // 2) Update Supabase Auth metadata (what shows in the Auth “Display name” column)
-      await supabase.auth.updateUser({
+      // 2) Update Supabase Auth metadata
+      const { error: metaErr } = await supabase.auth.updateUser({
         data: {
-          full_name: fname || uname, // Supabase UI usually reads this
-          display_name: uname, // extra aliases don’t hurt
+          name: fname || uname,
+          full_name: fname || uname,
           username: uname,
-          avatar_url: avatar_key ?? null,
+          avatar_url: avatar_key, // save storage key
         },
       });
-      // (optional) await supabase.auth.refreshSession();
+      if (metaErr) throw metaErr;
 
-      // 3) Upsert your public.profiles row via your FastAPI
-      await save({
-        username: uname,
-        full_name: fname || undefined,
-        avatar_url: avatar_key, // store the STORAGE KEY, not a full URL
-      });
+      // 3) Upsert into public.profiles
+      const { error: upsertErr } = await supabase.from("profiles").upsert(
+        {
+          user_id: uid,
+          username: uname,
+          full_name: fname || null,
+          avatar_url: avatar_key,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
 
-      // 4) Done
-  navigation.replace("Home", {} as any);
-    } catch (e) {
-      console.log(e); // TODO: show a toast
+      if (upsertErr) {
+        console.log("Profile upsert error:", upsertErr);
+        throw upsertErr;
+      }
+
+      // 4) Go home
+      navigation.replace("Home");
+    } catch (e: any) {
+      console.log("Profile save error:", e?.message ?? e);
     } finally {
       setLoading(false);
     }
