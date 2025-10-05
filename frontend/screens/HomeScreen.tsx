@@ -56,6 +56,29 @@ export default function HomeScreen({ navigation, route }: Props) {
     },
   ]);
 
+  // Helper function to convert storage path to public URL
+  const getImageUrl = useCallback(
+    (mediaUrl: string | null): string | undefined => {
+      if (!mediaUrl) return undefined;
+
+      // If it's already a full URL, return as-is
+      if (mediaUrl.startsWith("http://") || mediaUrl.startsWith("https://")) {
+        return mediaUrl;
+      }
+
+      // Otherwise, treat it as a storage path and get the public URL
+      try {
+        const { data } = supabase.storage.from("posts").getPublicUrl(mediaUrl);
+
+        return data?.publicUrl || undefined;
+      } catch (err) {
+        console.error("Error getting image URL:", err);
+        return undefined;
+      }
+    },
+    []
+  );
+
   // Convert backend PostWithCounts + ChallengeOut to frontend SocialPost format
   const mapPostToSocialPost = useCallback(
     async (
@@ -83,13 +106,16 @@ export default function HomeScreen({ navigation, route }: Props) {
         console.error("Error fetching profile:", err);
       }
 
+      // Convert storage path to public URL if needed
+      const imageUrl = getImageUrl(post.media_url);
+
       return {
         id: post.id.toString(),
         username,
         handle,
         timestamp: new Date(post.created_at).toLocaleDateString(),
         content: challenge.title,
-        image: post.media_url || undefined,
+        image: imageUrl,
         upvotes: 0, // Not implemented yet
         downvotes: 0, // Not implemented yet
         stake: challenge.amount_cents / 100, // Convert cents to dollars
@@ -103,7 +129,7 @@ export default function HomeScreen({ navigation, route }: Props) {
         updates: [],
       };
     },
-    []
+    [getImageUrl]
   );
 
   // Fetch posts from backend API
