@@ -15,13 +15,13 @@ import { SocialPost, mockSocialPosts } from '../services/socialData';
 import SocialPostComponent from '../components/SocialPost';
 import BottomNavigation from '../components/BottomNavigation';
 import FloatingButton from '../components/FloatingButton';
-import { useBets } from '../contexts/BetsContext';
+import { useCommitments } from '../contexts/CommitmentsContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export default function HomeScreen({ navigation, route }: Props) {
   const { user: routeUser, newChallenge } = route.params || {};
-  const { addBet, hasBet } = useBets();
+  const { addCommitment, hasCommitment } = useCommitments();
   
   // Create a mock user if none provided (for navigation from other screens)
   const user = routeUser || {
@@ -75,9 +75,9 @@ export default function HomeScreen({ navigation, route }: Props) {
       return;
     }
     
-    // Check if user already has a bet on this post
-    if (hasBet(postId)) {
-      Alert.alert('Already Bet', 'You have already placed a bet on this challenge.');
+    // Check if user already has a commitment on this post
+    if (hasCommitment(postId)) {
+      Alert.alert('Already Committed', 'You have already committed to this challenge.');
       return;
     }
     
@@ -86,12 +86,12 @@ export default function HomeScreen({ navigation, route }: Props) {
       : 'NO - I don\'t think they will complete this challenge';
     
     Alert.alert(
-      'Confirm Your Bet',
-      `${choiceText}\n\nStake: $${post.stake}\n\nThis bet will be added to "My Bets" and cannot be changed once confirmed.`,
+      'Confirm Your Commitment',
+      `${choiceText}\n\nStake: $${post.stake}\n\nThis commitment will be added to "Support" and cannot be changed once confirmed.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'Confirm Bet', 
+          text: 'Confirm', 
           style: 'default',
           onPress: () => {
             // Update post in feed
@@ -114,15 +114,15 @@ export default function HomeScreen({ navigation, route }: Props) {
               })
             );
             
-            // Add to My Bets
+            // Add to Support
             const updatedPoolYes = choice === 'yes' ? (post.poolYes || 0) + post.stake : (post.poolYes || 0);
             const updatedPoolNo = choice === 'no' ? (post.poolNo || 0) + post.stake : (post.poolNo || 0);
             const totalPool = updatedPoolYes + updatedPoolNo;
             const userSidePool = choice === 'yes' ? updatedPoolYes : updatedPoolNo;
             const expectedPayout = userSidePool > 0 ? (post.stake / userSidePool) * totalPool : post.stake;
             
-            addBet({
-              id: `bet-${postId}-${Date.now()}`,
+            addCommitment({
+              id: `commitment-${postId}-${Date.now()}`,
               postId: postId,
               challengeTitle: post.content,
               creator: {
@@ -145,8 +145,8 @@ export default function HomeScreen({ navigation, route }: Props) {
             
             // Show success message
             Alert.alert(
-              'Bet Placed!',
-              `Your bet has been added to "My Bets". You can view it in the Bets tab.`,
+              'Commitment Made!',
+              `Your commitment has been added to "Support". You can view it in the Support tab.`,
               [{ text: 'OK' }]
             );
           }

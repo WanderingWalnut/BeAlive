@@ -65,7 +65,7 @@ export default function LoginScreen({ navigation }: Props) {
           {/* Brand / Copy */}
           <View style={styles.header}>
             <Text style={styles.appName}>BeAlive</Text>
-            <Text style={styles.tagline}>Bet on everyday life — with friends.</Text>
+            <Text style={styles.tagline}>Support friends' goals — together.</Text>
           </View>
 
               {/* Form */}

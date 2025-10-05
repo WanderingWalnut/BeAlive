@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { theme } from './theme';
-import { BetsProvider } from './contexts/BetsContext';
+import { CommitmentsProvider } from './contexts/CommitmentsContext';
 
 import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
@@ -64,7 +64,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
-    <BetsProvider>
+    <CommitmentsProvider>
       <PaperProvider theme={theme}>
         <NavigationContainer>
           <Stack.Navigator 
@@ -90,6 +90,6 @@ export default function App() {
           </Stack.Navigator>
         </NavigationContainer>
       </PaperProvider>
-    </BetsProvider>
+    </CommitmentsProvider>
   );
 }

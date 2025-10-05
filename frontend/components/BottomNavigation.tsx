@@ -11,7 +11,7 @@ interface BottomNavigationProps {
 export default function BottomNavigation({ currentIndex, onTabPress }: BottomNavigationProps) {
   const routes = [
     { key: 'home', title: 'Home', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
-    { key: 'commitments', title: 'My Bets', focusedIcon: 'chart-line', unfocusedIcon: 'chart-line' },
+    { key: 'commitments', title: 'Support', focusedIcon: 'account-heart', unfocusedIcon: 'account-heart-outline' },
     { key: 'settings', title: 'Settings', focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
   ];
 

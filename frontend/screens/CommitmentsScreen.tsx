@@ -13,7 +13,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import BottomNavigation from '../components/BottomNavigation';
-import { useBets } from '../contexts/BetsContext';
+import { useCommitments } from '../contexts/CommitmentsContext';
 import { IconButton } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -49,7 +49,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Commitments'>;
 export default function CommitmentsScreen({ navigation }: Props) {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [index, setIndex] = useState(1);
-  const { bets } = useBets();
+  const { commitments } = useCommitments();
 
   const handleTabPress = (key: string) => {
     if (key === 'home') {
@@ -96,31 +96,33 @@ export default function CommitmentsScreen({ navigation }: Props) {
   };
 
   const renderSummaryCard = () => {
-    if (bets.length === 0) return null;
+    if (commitments.length === 0) return null;
 
-    const totalInvested = bets.reduce((sum, bet) => sum + bet.stake, 0);
-    const totalPotentialReturn = bets.reduce((sum, bet) => sum + bet.expectedPayout, 0);
-    const activeBets = bets.filter(bet => !bet.isExpired).length;
+    const totalCommitted = commitments.reduce((sum, commitment) => sum + commitment.stake, 0);
+    const totalPotentialReturn = commitments.reduce((sum, commitment) => sum + commitment.expectedPayout, 0);
+    const activeCommitments = commitments.filter(commitment => !commitment.isExpired).length;
 
     return (
       <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Portfolio Summary</Text>
+        <Text style={styles.summaryTitle}>Your Impact</Text>
         <View style={styles.summaryStats}>
           <View style={styles.summaryStatItem}>
-            <Text style={styles.summaryStatValue}>${totalInvested}</Text>
-            <Text style={styles.summaryStatLabel}>Total Invested</Text>
+            <Text style={styles.summaryStatValue}>${totalCommitted}</Text>
+            <Text style={styles.summaryStatLabel}>Total Committed</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryStatItem}>
             <Text style={[styles.summaryStatValue, { color: '#10b981' }]}>
-              ${totalPotentialReturn.toFixed(0)}
+              {activeCommitments}
             </Text>
-            <Text style={styles.summaryStatLabel}>Potential Return</Text>
+            <Text style={styles.summaryStatLabel}>Active Support</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryStatItem}>
-            <Text style={styles.summaryStatValue}>{activeBets}</Text>
-            <Text style={styles.summaryStatLabel}>Active Bets</Text>
+            <Text style={styles.summaryStatValue}>
+              {commitments.filter(c => c.userChoice === 'yes').length}
+            </Text>
+            <Text style={styles.summaryStatLabel}>Believing In</Text>
           </View>
         </View>
       </View>
@@ -172,16 +174,16 @@ export default function CommitmentsScreen({ navigation }: Props) {
             {item.challengeTitle}
           </Text>
 
-          {/* Your Position */}
+          {/* Your Commitment */}
           <View style={styles.positionContainer}>
             <View style={styles.positionBadge}>
-              <Text style={styles.positionLabel}>YOUR POSITION</Text>
+              <Text style={styles.positionLabel}>YOUR COMMITMENT</Text>
               <View style={[
                 styles.positionValue,
                 item.userChoice === 'yes' ? styles.yesPosition : styles.noPosition
               ]}>
                 <Text style={styles.positionText}>
-                  {item.userChoice === 'yes' ? '↑ YES' : '↓ NO'}
+                  {item.userChoice === 'yes' ? '✓ Supporting' : '✗ Doubtful'}
                 </Text>
                 <Text style={styles.positionAmount}>${item.stake}</Text>
               </View>
@@ -189,7 +191,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
 
             {!hasExpired && (
               <View style={styles.returnsContainer}>
-                <Text style={styles.returnsLabel}>Potential Return</Text>
+                <Text style={styles.returnsLabel}>If Correct</Text>
                 <Text style={styles.returnsValue}>
                   ${item.expectedPayout.toFixed(2)}
                 </Text>
@@ -197,15 +199,16 @@ export default function CommitmentsScreen({ navigation }: Props) {
                   styles.roiText,
                   stats.roi > 0 ? styles.roiPositive : styles.roiNeutral
                 ]}>
-                  {stats.roi > 0 ? '+' : ''}{stats.roi}% ROI
+                  {stats.potentialReturn > 0 ? '+$' : ''}{stats.potentialReturn.toFixed(0)} back
                 </Text>
               </View>
             )}
           </View>
 
-          {/* Pool Distribution Bar */}
+          {/* Community Support Distribution */}
           {!hasExpired && (
             <View style={styles.poolDistribution}>
+              <Text style={styles.communityLabel}>Community Support</Text>
               <View style={styles.poolBar}>
                 <View 
                   style={[
@@ -218,13 +221,13 @@ export default function CommitmentsScreen({ navigation }: Props) {
                 <View style={styles.poolLabelItem}>
                   <View style={[styles.poolDot, { backgroundColor: '#10b981' }]} />
                   <Text style={styles.poolLabelText}>
-                    YES ${stats.userSidePool} ({stats.userSidePercent}%)
+                    Believing: ${stats.userSidePool} ({stats.userSidePercent}%)
                   </Text>
                 </View>
                 <View style={styles.poolLabelItem}>
                   <View style={[styles.poolDot, { backgroundColor: '#ef4444' }]} />
                   <Text style={styles.poolLabelText}>
-                    NO ${stats.otherSidePool} ({100 - stats.userSidePercent}%)
+                    Skeptical: ${stats.otherSidePool} ({100 - stats.userSidePercent}%)
                   </Text>
                 </View>
               </View>
@@ -249,11 +252,16 @@ export default function CommitmentsScreen({ navigation }: Props) {
                     styles.outcomeText,
                     { color: userWon ? '#10b981' : '#ef4444' }
                   ]}>
-                    {userWon ? 'You Won!' : 'You Lost'}
+                    {userWon ? 'You Were Right!' : 'Challenge Completed'}
                   </Text>
                   {userWon && (
                     <Text style={styles.outcomeAmount}>
-                      +${item.expectedPayout.toFixed(2)}
+                      Received ${item.expectedPayout.toFixed(2)}
+                    </Text>
+                  )}
+                  {!userWon && (
+                    <Text style={styles.outcomeSubtext}>
+                      Your support made a difference
                     </Text>
                   )}
                 </View>
@@ -280,25 +288,25 @@ export default function CommitmentsScreen({ navigation }: Props) {
           {/* Expanded Content */}
           {isExpanded && (
             <View style={styles.expandedSection}>
-              {/* Total Pool Stats */}
+              {/* Challenge Stats */}
               <View style={styles.statsGrid}>
                 <View style={styles.statBox}>
                   <Text style={styles.statValue}>${stats.totalPool}</Text>
-                  <Text style={styles.statLabel}>Total Pool</Text>
+                  <Text style={styles.statLabel}>Total Committed</Text>
                 </View>
                 <View style={styles.statBox}>
                   <Text style={styles.statValue}>
                     {item.participantsYes + item.participantsNo}
                   </Text>
-                  <Text style={styles.statLabel}>Participants</Text>
+                  <Text style={styles.statLabel}>Friends Supporting</Text>
                 </View>
                 <View style={styles.statBox}>
                   <Text style={styles.statValue}>{item.participantsYes}</Text>
-                  <Text style={styles.statLabel}>YES Investors</Text>
+                  <Text style={styles.statLabel}>Believing</Text>
                 </View>
                 <View style={styles.statBox}>
                   <Text style={styles.statValue}>{item.participantsNo}</Text>
-                  <Text style={styles.statLabel}>NO Investors</Text>
+                  <Text style={styles.statLabel}>Skeptical</Text>
                 </View>
               </View>
 
@@ -339,21 +347,21 @@ export default function CommitmentsScreen({ navigation }: Props) {
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
         <IconButton 
-          icon="chart-line" 
+          icon="account-heart" 
           size={64} 
           iconColor="#E0E5ED"
           style={styles.emptyIcon}
         />
       </View>
-      <Text style={styles.emptyTitle}>No Active Bets</Text>
+      <Text style={styles.emptyTitle}>No Active Commitments</Text>
       <Text style={styles.emptyText}>
-        Start investing in your friends' challenges from the Home feed
+        Support your friends' goals and hold them accountable
       </Text>
       <TouchableOpacity 
         style={styles.emptyButton}
         onPress={() => navigation.replace('Home')}
       >
-        <Text style={styles.emptyButtonText}>Explore Challenges</Text>
+        <Text style={styles.emptyButtonText}>Find Friends to Support</Text>
       </TouchableOpacity>
     </View>
   );
@@ -364,17 +372,17 @@ export default function CommitmentsScreen({ navigation }: Props) {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Bets</Text>
+        <Text style={styles.headerTitle}>My Commitments</Text>
         <Text style={styles.headerSubtitle}>
-          {bets.length} {bets.length === 1 ? 'Investment' : 'Investments'}
+          Supporting {commitments.length} {commitments.length === 1 ? 'friend' : 'friends'}
         </Text>
       </View>
 
-      {bets.length === 0 ? (
+      {commitments.length === 0 ? (
         renderEmptyState()
       ) : (
         <FlatList
-          data={bets}
+          data={commitments}
           keyExtractor={(item) => item.id}
           renderItem={renderCommitmentCard}
           ListHeaderComponent={renderSummaryCard}
@@ -605,6 +613,14 @@ const styles = StyleSheet.create({
   poolDistribution: {
     marginBottom: 16,
   },
+  communityLabel: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   poolBar: {
     height: 6,
     backgroundColor: '#ef444420',
@@ -670,6 +686,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#10b981',
+  },
+  outcomeSubtext: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    fontWeight: '500',
   },
   expandToggle: {
     flexDirection: 'row',

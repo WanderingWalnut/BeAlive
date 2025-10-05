@@ -30,7 +30,7 @@ export default function SplashScreen({ navigation }: Props) {
       {/* App Logo/Title */}
       <View style={styles.logoContainer}>
         <Text style={styles.appName}>BeAlive</Text>
-        <Text style={styles.tagline}>Bet on everyday life — with friends</Text>
+        <Text style={styles.tagline}>Support friends' goals — together</Text>
       </View>
 
       {/* Loading Indicator */}
