@@ -76,6 +76,7 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
   const commit = "5"; // Fixed commit amount
   const [expiryDays, setExpiryDays] = useState("7");
   const [expiryHours, setExpiryHours] = useState("0");
+  const [expiryMinutes, setExpiryMinutes] = useState("0");
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
@@ -117,14 +118,14 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
         // Create a new challenge with post
         const parsedDays = parseInt(expiryDays, 10);
         const parsedHours = parseInt(expiryHours, 10);
-        const totalHours =
-          (isNaN(parsedDays) ? 7 : parsedDays) * 24 +
-          (isNaN(parsedHours) ? 0 : parsedHours);
+        const parsedMinutes = parseInt(expiryMinutes, 10);
+        const totalMs =
+          ((isNaN(parsedDays) ? 7 : parsedDays) * 24 * 60 * 60 * 1000) +
+          ((isNaN(parsedHours) ? 0 : parsedHours) * 60 * 60 * 1000) +
+          ((isNaN(parsedMinutes) ? 0 : parsedMinutes) * 60 * 1000);
 
         // Calculate end date
-        const endsAt = new Date(
-          Date.now() + totalHours * 60 * 60 * 1000
-        ).toISOString();
+        const endsAt = new Date(Date.now() + totalMs).toISOString();
 
         // Create post with new challenge (without media first)
         const post = await createPost(accessToken, {
@@ -511,6 +512,14 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
                       maxLength={2}
                     />
                     <Text style={styles.unitText}>hours</Text>
+                    <TextInput
+                      value={expiryMinutes}
+                      onChangeText={setExpiryMinutes}
+                      keyboardType="numeric"
+                      style={[styles.expiryInput, { marginLeft: 8 }]}
+                      maxLength={2}
+                    />
+                    <Text style={styles.unitText}>min</Text>
                   </View>
                 </View>
               </View>
