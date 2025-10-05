@@ -268,26 +268,7 @@ export default function HomeScreen({ navigation, route }: Props) {
     }
   }, [navigation, route.params, fetchPosts]);
 
-  // Dev helper: reset AsyncStorage keys and refresh from API
-  const handleResetStorage = async () => {
-    try {
-      await AsyncStorage.removeItem("userPosts");
-      await AsyncStorage.removeItem("userChallenges");
-      await AsyncStorage.removeItem(FEED_CACHE_KEY);
-      await fetchPosts(true);
-      Alert.alert(
-        "Storage Reset",
-        "Cleared local cache and refreshed from server."
-      );
-      console.log("AsyncStorage cleared and posts refreshed from API");
-    } catch (err) {
-      console.error("Error clearing AsyncStorage:", err);
-      Alert.alert(
-        "Error",
-        "Failed to clear storage. Check console for details."
-      );
-    }
-  };
+  // (Removed) Dev helper to reset AsyncStorage - not available in production build
 
   // Load posts on mount
   useEffect(() => {
@@ -507,15 +488,9 @@ export default function HomeScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
-      {/* App Title + Reset on same row */}
+      {/* App Title */}
       <View style={[styles.appHeader, styles.headerRow]}>
         <Text style={styles.appTitle}>BeLive</Text>
-        <TouchableOpacity
-          style={styles.resetButton}
-          onPress={handleResetStorage}
-        >
-          <Text style={styles.resetButtonText}>Reset Storage</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Main Content */}
@@ -584,18 +559,7 @@ const styles = StyleSheet.create({
   feedContainer: {
     paddingBottom: 80,
   },
-  resetButton: {
-    backgroundColor: "#EFEFEF",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    alignSelf: "flex-end",
-    borderRadius: 6,
-    margin: 12,
-  },
-  resetButtonText: {
-    color: "#111827",
-    fontSize: 12,
-  },
+  // (Removed) reset button styles
   appHeader: {
     paddingHorizontal: 16,
     paddingTop: 12,

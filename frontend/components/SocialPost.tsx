@@ -92,9 +92,8 @@ export default function SocialPost({
     if (isNaN(Date.parse(ts))) return ts;
     try {
       const d = new Date(ts);
-      const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-      return `${date} • ${time}`;
+      // Return date only (e.g. "Oct 5") — no time displayed per request
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     } catch (e) {
       return ts;
     }
@@ -102,27 +101,29 @@ export default function SocialPost({
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header: left = avatar + title/handle, right = timestamp + expiry */}
       <View style={styles.header}>
-        <View style={styles.userInfo}>
+        <View style={styles.leftRow}>
           <Image
             source={{ uri: `https://i.pravatar.cc/40?img=${Math.floor(Math.random() * 70)}` }}
             style={styles.avatar}
           />
           <View style={styles.userDetails}>
             {/* Title goes at the top */}
-            <Text style={styles.postTitle} numberOfLines={2}>{displayTitle}</Text>
-            <View style={styles.nameRow}>
-              <Text style={styles.handle}>{handle}</Text>
-              {verified && <Text style={styles.verified}>✓</Text>}
-              <Text style={styles.timestamp}>• {formatTimestamp(timestamp)}</Text>
-            </View>
-            {expiry && (
-              <View style={styles.expiryRow}>
-                <Text style={styles.expiryText}>{formatExpiry(expiry)}</Text>
-              </View>
-            )}
+                    <Text style={styles.postTitle} accessibilityRole="header">{displayTitle}</Text>
+            {/* no left-side handle/username to avoid duplication; handle will appear on the right under the date */}
           </View>
+        </View>
+
+        <View style={styles.rightInfo}>
+          <Text style={styles.timestamp}>{formatTimestamp(timestamp)}</Text>
+          {expiry && <Text style={styles.expiryText}>{formatExpiry(expiry)}</Text>}
+          {handle ? (
+            <View style={styles.handleRowRight}>
+              <Text style={styles.handleRight} numberOfLines={1}>{handle}</Text>
+              {verified && <Text style={styles.verified}> ✓</Text>}
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -252,6 +253,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  leftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -285,6 +291,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'nowrap',
   },
+  rightInfo: {
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+    alignSelf: 'flex-start',
+    marginLeft: 12,
+  },
   username: {
     color: '#1A1D2E',
     fontSize: 16,
@@ -312,6 +324,24 @@ const styles = StyleSheet.create({
     color: '#6B8AFF',
     fontSize: 12,
     fontWeight: '600',
+  },
+  usernameRight: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginTop: 4,
+    maxWidth: 120,
+    textAlign: 'right',
+  },
+  handleRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+  },
+  handleRight: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    textAlign: 'right',
   },
   content: {
     paddingHorizontal: 16,
