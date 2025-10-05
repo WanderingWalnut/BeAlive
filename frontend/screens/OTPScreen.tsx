@@ -17,6 +17,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
 import { supabase } from "../lib/supabase";
 import { getMe } from "../lib/api";
+import { isOnboarded } from "../lib/onboarding";
 
 type Props = NativeStackScreenProps<RootStackParamList, "OTP">;
 
@@ -186,28 +187,18 @@ export default function OTPScreen({ route, navigation }: Props) {
         type: "sms",
       });
       if (error) throw error;
-      // Decide next screen based on profile completeness
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
-        // Debug logs
-        // eslint-disable-next-line no-console
-        console.log("EXPO_PUBLIC_API_URL:", process.env.EXPO_PUBLIC_API_URL);
-        // eslint-disable-next-line no-console
-        console.log("token prefix:", token?.slice(0, 12));
 
-        let next: "Home" | "ProfileSetup" = "ProfileSetup";
-        if (token) {
-          const profile = await getMe(token);
-          const needsSetup =
-            !profile || !profile.username || !profile.avatar_url;
-          next = needsSetup ? "ProfileSetup" : "Home";
-        }
-        navigation.reset({ index: 0, routes: [{ name: next }] });
+      // ✅ Single source of truth
+      let next: "Home" | "ProfileSetup" = "ProfileSetup";
+      try {
+        const ok = await isOnboarded();
+        next = ok ? "Home" : "ProfileSetup";
       } catch {
-        // Any failure → ProfileSetup (safer default for first-time users)
-        navigation.reset({ index: 0, routes: [{ name: "ProfileSetup" }] });
+        // safest default for new users
+        next = "ProfileSetup";
       }
+
+      navigation.reset({ index: 0, routes: [{ name: next }] });
     } catch (e: any) {
       setErr(e?.message ?? "Invalid or expired code.");
       triggerShake();

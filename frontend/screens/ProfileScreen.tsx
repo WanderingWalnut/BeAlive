@@ -18,6 +18,7 @@ import BottomNavigation from "../components/BottomNavigation";
 import { useMe } from "../hooks/useMe";
 import { supabase } from "../lib/supabase";
 import * as FileSystem from "expo-file-system/legacy";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
 
@@ -118,15 +119,29 @@ export default function ProfileScreen({ navigation }: Props) {
     });
   };
 
+  const performLogout = async () => {
+    try {
+      // End Supabase session (prevents Splash from seeing a valid session)
+      await supabase.auth.signOut();
+
+      // Clear any local caches you read in Home/etc
+      await AsyncStorage.multiRemove(["userPosts", "userChallenges"]);
+
+      // Reset nav stack to Login
+      navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+    } catch (e) {
+      console.log("Logout error:", e);
+      navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Logout",
         style: "destructive",
-        onPress: () => {
-          navigation.reset({ index: 0, routes: [{ name: "Login" }] });
-        },
+        onPress: performLogout,
       },
     ]);
   };

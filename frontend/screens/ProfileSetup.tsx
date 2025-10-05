@@ -319,6 +319,16 @@ export default function ProfileSetup({ navigation }: Props) {
         throw upsertErr;
       }
 
+      await supabase.auth.updateUser({
+        data: {
+          name: fname || uname,
+          full_name: fname || uname,
+          username: uname,
+          avatar_url: avatar_key,
+          onboarded: true,
+        },
+      });
+
       // 4) Go home
       navigation.replace("Home");
     } catch (e: any) {

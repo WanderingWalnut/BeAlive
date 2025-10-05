@@ -88,21 +88,20 @@ export default function SplashScreen({ navigation }: Props) {
     let cancelled = false;
 
     const boot = async () => {
-      // Increase splash minimum display time to 3 seconds
-      const minDelay = new Promise((r) => setTimeout(r, 3000));
+      const minDelay = new Promise((r) => setTimeout(r, 3000)); // short splash
 
       try {
-        // 1) Any session?
+        // 1) Check session first. If not logged in -> Login.
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
-
         if (!token) {
           await minDelay;
           if (!cancelled) navigation.replace("Login");
           return;
         }
 
-        // 2) Validate user (guards against stale token)
+        // 2) We are logged in -> check onboarding status.
+        //    If onboarded -> Home, else -> ProfileSetup.
         const { data: userData, error: userErr } =
           await supabase.auth.getUser();
         if (userErr || !userData?.user) {
@@ -111,23 +110,27 @@ export default function SplashScreen({ navigation }: Props) {
           return;
         }
 
-        // 3) Fetch profile; if this call throws (network/401), go Login
-        let me;
-        try {
-          me = await getMe(token);
-        } catch {
-          await minDelay;
-          if (!cancelled) navigation.replace("Login");
-          return;
-        }
+        // optional: use helper above; or inline query as below.
+        const uid = userData.user.id;
+        const flagged = Boolean(
+          (userData.user.user_metadata as any)?.onboarded
+        );
 
-        const needsSetup = !me || !me.username || !me.avatar_url;
+        let onboarded = flagged;
+        if (!onboarded) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("username, avatar_url")
+            .eq("user_id", uid)
+            .single();
+          onboarded = Boolean(profile?.username && profile?.avatar_url);
+        }
 
         await minDelay;
         if (!cancelled) {
           navigation.reset({
             index: 0,
-            routes: [{ name: needsSetup ? "ProfileSetup" : "Home" }],
+            routes: [{ name: onboarded ? "Home" : "ProfileSetup" }],
           });
         }
       } catch {
