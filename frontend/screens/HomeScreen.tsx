@@ -207,13 +207,13 @@ export default function HomeScreen({ navigation, route }: Props) {
       `${choiceText}\n\nCommit: $${post.stake}\n\nThis commitment will be added to "Commits" and cannot be changed once confirmed.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Confirm', 
+        {
+          text: 'Confirm',
           style: 'default',
-          onPress: () => {
-            // Update post in feed
-            setPosts(prevPosts =>
-              prevPosts.map(p => {
+          onPress: async () => {
+            try {
+              // Build updated posts with locked userCommitment so selection persists
+              const updatedPosts = posts.map(p => {
                 if (p.id === postId) {
                   return {
                     ...p,
@@ -228,44 +228,47 @@ export default function HomeScreen({ navigation, route }: Props) {
                   };
                 }
                 return p;
-              })
-            );
-            
-            // Add to Commits
-            const updatedPoolYes = choice === 'yes' ? (post.poolYes || 0) + post.stake : (post.poolYes || 0);
-            const updatedPoolNo = choice === 'no' ? (post.poolNo || 0) + post.stake : (post.poolNo || 0);
-            const totalPool = updatedPoolYes + updatedPoolNo;
-            const userSidePool = choice === 'yes' ? updatedPoolYes : updatedPoolNo;
-            const expectedPayout = userSidePool > 0 ? (post.stake / userSidePool) * totalPool : post.stake;
-            
-            addCommitment({
-              id: `commitment-${postId}-${Date.now()}`,
-              postId: postId,
-              challengeTitle: post.content,
-              creator: {
-                username: post.username,
-                handle: post.handle,
-                avatar: `https://i.pravatar.cc/150?u=${post.username}`,
-              },
-              userChoice: choice,
-              stake: post.stake,
-              poolYes: updatedPoolYes,
-              poolNo: updatedPoolNo,
-              participantsYes: choice === 'yes' ? (post.participantsYes || 0) + 1 : (post.participantsYes || 0),
-              participantsNo: choice === 'no' ? (post.participantsNo || 0) + 1 : (post.participantsNo || 0),
-              expectedPayout: Math.round(expectedPayout * 100) / 100,
-              expiry: post.expiry || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-              image: post.image,
-              isExpired: false,
-              updates: [],
-            });
-            
-            // Show success message
-            Alert.alert(
-              'Commitment Made!',
-              `Your commitment has been added to "Commits". You can view it in the Commits tab.`,
-              [{ text: 'OK' }]
-            );
+              });
+
+              // Persist the updated posts immediately so selection stays across screens
+              setPosts(updatedPosts);
+              await AsyncStorage.setItem('userPosts', JSON.stringify(updatedPosts));
+
+              // Add to Commits (context)
+              const updatedPoolYes = choice === 'yes' ? (post.poolYes || 0) + post.stake : (post.poolYes || 0);
+              const updatedPoolNo = choice === 'no' ? (post.poolNo || 0) + post.stake : (post.poolNo || 0);
+              const totalPool = updatedPoolYes + updatedPoolNo;
+              const userSidePool = choice === 'yes' ? updatedPoolYes : updatedPoolNo;
+              const expectedPayout = userSidePool > 0 ? (post.stake / userSidePool) * totalPool : post.stake;
+
+              addCommitment({
+                id: `commitment-${postId}-${Date.now()}`,
+                postId: postId,
+                challengeTitle: post.content,
+                creator: {
+                  username: post.username,
+                  handle: post.handle,
+                  avatar: `https://i.pravatar.cc/150?u=${post.username}`,
+                },
+                userChoice: choice,
+                stake: post.stake,
+                poolYes: updatedPoolYes,
+                poolNo: updatedPoolNo,
+                participantsYes: choice === 'yes' ? (post.participantsYes || 0) + 1 : (post.participantsYes || 0),
+                participantsNo: choice === 'no' ? (post.participantsNo || 0) + 1 : (post.participantsNo || 0),
+                expectedPayout: Math.round(expectedPayout * 100) / 100,
+                expiry: post.expiry || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                image: post.image,
+                isExpired: false,
+                updates: [],
+              });
+
+              // Show success message
+              Alert.alert('Commitment Made!', `Your commitment has been added to "Commits". You can view it in the Commits tab.`, [{ text: 'OK' }]);
+            } catch (err) {
+              console.error('Error saving commitment:', err);
+              Alert.alert('Error', 'Failed to save your commitment. Please try again.');
+            }
           }
         }
       ]
@@ -323,17 +326,22 @@ export default function HomeScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
+      {/* App Title + Reset on same row */}
+      <View style={[styles.appHeader, styles.headerRow]}>
+        <Text style={styles.appTitle}>BeLive</Text>
+        <TouchableOpacity
+          style={styles.resetButton}
+          onPress={handleResetStorage}
+        >
+          <Text style={styles.resetButtonText}>Reset Storage</Text>
+        </TouchableOpacity>
+      </View>
       
       {/* Main Content */}
       <View style={styles.mainContent}>
         {index === 0 && (
           <>
-            <TouchableOpacity
-              style={[styles.resetButton]}
-              onPress={handleResetStorage}
-            >
-              <Text style={styles.resetButtonText}>Reset Storage</Text>
-            </TouchableOpacity>
+            {/* header reset moved to top */}
             {posts.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyTitle}>Stand by</Text>
@@ -401,6 +409,22 @@ const styles = StyleSheet.create({
   resetButtonText: {
     color: '#111827',
     fontSize: 12,
+  },
+  appHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: 'transparent',
+  },
+  appTitle: {
+    color: '#000000',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   emptyContainer: {
     flex: 1,
