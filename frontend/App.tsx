@@ -14,7 +14,7 @@ import SharingSettingsScreen from './screens/SharingSettingsScreen';
 import HomeScreen from './screens/HomeScreen';
 import ChallengeCreationScreen from './screens/ChallengeCreationScreen';
 import CommitmentsScreen from './screens/CommitmentsScreen';
-import SettingsScreen from './screens/SettingsScreen';
+import ProfileScreen from './screens/ProfileScreen';
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -49,7 +49,7 @@ export type RootStackParamList = {
   };
   ChallengeCreation: undefined;
   Commitments: undefined;
-  Settings: undefined;
+  Profile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -69,7 +69,7 @@ export default function App() {
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="ChallengeCreation" component={ChallengeCreationScreen} />
           <Stack.Screen name="Commitments" component={CommitmentsScreen} />
-          <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </PaperProvider>

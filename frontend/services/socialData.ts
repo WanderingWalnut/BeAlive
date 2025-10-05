@@ -8,6 +8,16 @@ export interface SocialPost {
   verified?: boolean;
   upvotes: number;
   downvotes: number;
+  // Betting properties
+  stake?: number;
+  poolYes?: number;
+  poolNo?: number;
+  participantsYes?: number;
+  participantsNo?: number;
+  userCommitment?: {
+    choice: 'yes' | 'no';
+    locked: boolean;
+  };
 }
 
 export const mockSocialPosts: SocialPost[] = [
@@ -47,19 +57,30 @@ export const mockSocialPosts: SocialPost[] = [
     username: 'Alex Chen',
     handle: '@alexchen',
     timestamp: '3hr',
-    content: 'Just finished my morning workout. Feeling energized! 💪',
+    content: 'Will I go to the gym 5 days this week?',
+    image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
     upvotes: 89,
     downvotes: 3,
+    stake: 10,
+    poolYes: 45,
+    poolNo: 25,
+    participantsYes: 3,
+    participantsNo: 2,
   },
   {
     id: '5',
     username: 'Sarah Kim',
     handle: '@sarahk',
     timestamp: '4hr',
-    content: 'Beautiful sunset from my balcony tonight.',
+    content: 'Will I complete my coding bootcamp project by Friday?',
     image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop',
     verified: true,
     upvotes: 234,
     downvotes: 5,
+    stake: 15,
+    poolYes: 60,
+    poolNo: 30,
+    participantsYes: 4,
+    participantsNo: 2,
   },
 ];

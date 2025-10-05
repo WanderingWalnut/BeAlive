@@ -20,6 +20,17 @@ interface SocialPostProps {
   downvotes: number;
   onUpvote: () => void;
   onDownvote: () => void;
+  // Betting properties
+  stake?: number;
+  poolYes?: number;
+  poolNo?: number;
+  participantsYes?: number;
+  participantsNo?: number;
+  userCommitment?: {
+    choice: 'yes' | 'no';
+    locked: boolean;
+  };
+  onCommit?: (choice: 'yes' | 'no') => void;
 }
 
 export default function SocialPost({
@@ -33,6 +44,13 @@ export default function SocialPost({
   downvotes,
   onUpvote,
   onDownvote,
+  stake,
+  poolYes = 0,
+  poolNo = 0,
+  participantsYes = 0,
+  participantsNo = 0,
+  userCommitment,
+  onCommit,
 }: SocialPostProps) {
   return (
     <View style={styles.container}>
@@ -64,25 +82,79 @@ export default function SocialPost({
 
       {/* Interaction Bar */}
       <View style={styles.interactions}>
-        <TouchableOpacity style={styles.interactionItem} onPress={onUpvote}>
-          <IconButton
-            icon="arrow-up"
-            size={20}
-            iconColor="#9ca3af"
-            style={styles.interactionIcon}
-          />
-          <Text style={styles.interactionText}>{upvotes.toLocaleString()}</Text>
-        </TouchableOpacity>
+        {stake && onCommit ? (
+          // Betting mode - Yes/No buttons
+          <>
+            <TouchableOpacity 
+              style={[
+                styles.interactionItem,
+                userCommitment?.choice === 'yes' && styles.selectedItem,
+                userCommitment?.locked && styles.lockedItem
+              ]} 
+              onPress={() => !userCommitment?.locked && onCommit('yes')}
+              disabled={userCommitment?.locked}
+            >
+              <IconButton
+                icon="arrow-up"
+                size={20}
+                iconColor={userCommitment?.choice === 'yes' ? '#4f46e5' : '#9ca3af'}
+                style={styles.interactionIcon}
+              />
+              <Text style={[
+                styles.interactionText,
+                userCommitment?.choice === 'yes' && styles.selectedText
+              ]}>
+                YES ({participantsYes})
+              </Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity style={styles.interactionItem} onPress={onDownvote}>
-          <IconButton
-            icon="arrow-down"
-            size={20}
-            iconColor="#9ca3af"
-            style={styles.interactionIcon}
-          />
-          <Text style={styles.interactionText}>{downvotes.toLocaleString()}</Text>
-        </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.interactionItem,
+                userCommitment?.choice === 'no' && styles.selectedItem,
+                userCommitment?.locked && styles.lockedItem
+              ]} 
+              onPress={() => !userCommitment?.locked && onCommit('no')}
+              disabled={userCommitment?.locked}
+            >
+              <IconButton
+                icon="arrow-down"
+                size={20}
+                iconColor={userCommitment?.choice === 'no' ? '#4f46e5' : '#9ca3af'}
+                style={styles.interactionIcon}
+              />
+              <Text style={[
+                styles.interactionText,
+                userCommitment?.choice === 'no' && styles.selectedText
+              ]}>
+                NO ({participantsNo})
+              </Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          // Regular social media mode - upvote/downvote
+          <>
+            <TouchableOpacity style={styles.interactionItem} onPress={onUpvote}>
+              <IconButton
+                icon="arrow-up"
+                size={20}
+                iconColor="#9ca3af"
+                style={styles.interactionIcon}
+              />
+              <Text style={styles.interactionText}>{upvotes.toLocaleString()}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.interactionItem} onPress={onDownvote}>
+              <IconButton
+                icon="arrow-down"
+                size={20}
+                iconColor="#9ca3af"
+                style={styles.interactionIcon}
+              />
+              <Text style={styles.interactionText}>{downvotes.toLocaleString()}</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   );
@@ -177,5 +249,16 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontSize: 14,
     marginLeft: 4,
+  },
+  selectedItem: {
+    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+    borderRadius: 8,
+  },
+  selectedText: {
+    color: '#4f46e5',
+    fontWeight: '600',
+  },
+  lockedItem: {
+    opacity: 0.7,
   },
 });
