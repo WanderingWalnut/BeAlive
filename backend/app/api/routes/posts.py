@@ -11,7 +11,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, status
 
-from app.models import CreatePostRequest, PostFull, PostWithCounts
+from app.models import CreatePostRequest, PostFull, PostWithCounts, PostMediaUpdate
 from app.services.posts import PostService
 from app.utils.auth import extract_bearer_token, get_supabase_user_from_token
 
@@ -58,3 +58,22 @@ async def delete_post(post_id: int = Path(..., ge=1), user_id: UUID = Depends(_c
     service.delete(author_id=user_id, post_id=post_id)
     return None
 
+
+@router.patch("/posts/{post_id}/media", response_model=PostWithCounts)
+async def update_post_media(
+    post_id: int = Path(..., ge=1),
+    body: PostMediaUpdate | None = None,
+    user_id: UUID = Depends(_current_user_id),
+):
+    """Update only the media_url for a post after a successful upload.
+
+    Use with the storage presign flow: first POST /uploads/presign, upload the file,
+    then call this endpoint with the returned `path`.
+    """
+    if not body or not body.media_url:
+        raise HTTPException(status_code=400, detail="media_url is required")
+    service = PostService()
+    try:
+        return service.update_media(author_id=user_id, post_id=post_id, body=body)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Post not found")

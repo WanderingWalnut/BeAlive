@@ -25,6 +25,7 @@ from .post import (
     FeedItem,
     CreatePostRequest,
     PostFull,
+    PostMediaUpdate,
 )
 from .commitment import (
     CommitmentCreate,
@@ -40,6 +41,10 @@ from .network import (
 )
 from .summary import (
     MeSummary,
+)
+from .uploads import (
+    PresignRequest,
+    PresignResponse,
 )
 
 __all__ = [
@@ -68,6 +73,7 @@ __all__ = [
     "FeedItem",
     "CreatePostRequest",
     "PostFull",
+    "PostMediaUpdate",
     # commitment
     "CommitmentCreate",
     "CommitmentOut",
@@ -80,4 +86,7 @@ __all__ = [
     "NetworkListResponse",
     # summary
     "MeSummary",
+    # uploads
+    "PresignRequest",
+    "PresignResponse",
 ]

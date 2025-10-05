@@ -11,6 +11,7 @@ from app.models import (
     PostWithCounts,
     PostFull,
     ProfileOut,
+    PostMediaUpdate,
 )
 from .supabase import get_supabase_client
 from .profile_service import ProfileService
@@ -25,6 +26,7 @@ class PostService:
 
     def create(self, author_id: UUID, body: CreatePostRequest) -> PostWithCounts:
         """Create a post; optionally create a new challenge atomically using RPC."""
+        # Intentionally ignore body.media_url on create to prevent uploads without a challenge/post linkage.
         params = {
             "p_challenge_id": body.challenge_id,
             "p_title": body.new_challenge.title if body.new_challenge else None,
@@ -33,7 +35,8 @@ class PostService:
             "p_starts_at": body.new_challenge.starts_at.isoformat() if body.new_challenge and body.new_challenge.starts_at else None,
             "p_ends_at": body.new_challenge.ends_at.isoformat() if body.new_challenge and body.new_challenge.ends_at else None,
             "p_caption": body.caption,
-            "p_media_url": body.media_url,
+            # Do not allow setting media on initial create; require presign + upload + PATCH
+            "p_media_url": None,
         }
         resp = self.client.rpc("create_post_with_optional_challenge", params).execute()
         row = (resp.data or [])[0] if isinstance(resp.data, list) else resp.data
@@ -57,3 +60,17 @@ class PostService:
         # RLS policy posts_author_delete ensures only author can delete.
         self.client.table("posts").delete().eq("id", post_id).execute()
 
+    def update_media(self, author_id: UUID, post_id: int, body: PostMediaUpdate) -> PostWithCounts:
+        """Update media_url for a post (author-only; RLS enforces)."""
+        resp = (
+            self.client.table("posts").update({"media_url": body.media_url}).eq("id", post_id).select("*").limit(1).execute()
+        )
+        row = ((resp.data or []) or [None])[0]
+        if not row:
+            raise ValueError("Post not found")
+        # Recompute aggregates by reading from posts_with_counts
+        pwc = (
+            self.client.table("posts_with_counts").select("*").eq("id", post_id).limit(1).execute()
+        )
+        prow = ((pwc.data or []) or [None])[0]
+        return TypeAdapter(PostWithCounts).validate_python(prow)

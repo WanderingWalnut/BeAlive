@@ -65,3 +65,7 @@ class PostFull(PostWithCounts):
 # Ensure forward refs are resolved (pydantic v2)
 PostWithCounts.model_rebuild()
 PostFull.model_rebuild()
+
+
+class PostMediaUpdate(BaseModel):
+    media_url: str
