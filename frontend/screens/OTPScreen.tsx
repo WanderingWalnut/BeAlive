@@ -190,16 +190,23 @@ export default function OTPScreen({ route, navigation }: Props) {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
-        let next: "Home" | "ProfileSetup" = "Home";
+        // Debug logs
+        // eslint-disable-next-line no-console
+        console.log("EXPO_PUBLIC_API_URL:", process.env.EXPO_PUBLIC_API_URL);
+        // eslint-disable-next-line no-console
+        console.log("token prefix:", token?.slice(0, 12));
+
+        let next: "Home" | "ProfileSetup" = "ProfileSetup";
         if (token) {
           const profile = await getMe(token);
           const needsSetup =
             !profile || !profile.username || !profile.avatar_url;
-          if (needsSetup) next = "ProfileSetup";
+          next = needsSetup ? "ProfileSetup" : "Home";
         }
         navigation.reset({ index: 0, routes: [{ name: next }] });
       } catch {
-        navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+        // Any failure → ProfileSetup (safer default for first-time users)
+        navigation.reset({ index: 0, routes: [{ name: "ProfileSetup" }] });
       }
     } catch (e: any) {
       setErr(e?.message ?? "Invalid or expired code.");
