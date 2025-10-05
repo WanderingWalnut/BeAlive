@@ -19,7 +19,17 @@ import SocialPostComponent from '../components/SocialPost';
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export default function HomeScreen({ navigation, route }: Props) {
-  const { user } = route.params || {};
+  const { user: routeUser } = route.params || {};
+  
+  // Create a mock user if none provided (for navigation from other screens)
+  const user = routeUser || {
+    id: 'dev-user',
+    phone_number: '+1234567890',
+    first_name: 'Dev',
+    last_name: 'User',
+    created_at: new Date().toISOString(),
+  };
+  
   const [posts, setPosts] = useState<SocialPost[]>(mockSocialPosts);
   const [index, setIndex] = useState(0);
   const [routes] = useState([
