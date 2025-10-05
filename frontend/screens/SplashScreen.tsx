@@ -88,7 +88,8 @@ export default function SplashScreen({ navigation }: Props) {
     let cancelled = false;
 
     const boot = async () => {
-      const minDelay = new Promise((r) => setTimeout(r, 500));
+      // Increase splash minimum display time to 3 seconds
+      const minDelay = new Promise((r) => setTimeout(r, 3000));
 
       try {
         // 1) Any session?

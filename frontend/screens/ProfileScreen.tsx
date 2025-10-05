@@ -192,20 +192,7 @@ export default function ProfileScreen({ navigation }: Props) {
             <Text style={styles.handle}>{user.handle}</Text>
           ) : null}
 
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{user.posts}</Text>
-              <Text style={styles.statLabel}>Posts</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{user.followers}</Text>
-              <Text style={styles.statLabel}>Followers</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{user.following}</Text>
-              <Text style={styles.statLabel}>Following</Text>
-            </View>
-          </View>
+          {/* Stats removed per UX: hide posts / followers / following */}
 
           <View style={styles.actionButtons}>
             <Button
