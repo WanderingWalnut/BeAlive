@@ -7,7 +7,6 @@ from app.core.config import settings
 
 class SupabaseService:
     """Create and manage a singleton Supabase client instance.
-
     This class defers client creation until first use so imports remain cheap and
     configuration issues surface when the client is actually needed.
     """
@@ -53,5 +52,7 @@ __all__ = [
     "get_supabase_service",
     "get_supabase_client",
 ]
+
+
 
 
