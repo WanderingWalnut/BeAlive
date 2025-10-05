@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,212 +8,249 @@ import {
   FlatList,
   StatusBar,
   TouchableOpacity,
-} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../App';
-import { SocialPost } from '../services/socialData';
-import SocialPostComponent from '../components/SocialPost';
-import BottomNavigation from '../components/BottomNavigation';
-import FloatingButton from '../components/FloatingButton';
-import { useCommitments } from '../contexts/CommitmentsContext';
+  ActivityIndicator,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../App";
+import { SocialPost } from "../services/socialData";
+import SocialPostComponent from "../components/SocialPost";
+import BottomNavigation from "../components/BottomNavigation";
+import FloatingButton from "../components/FloatingButton";
+import { useCommitments } from "../contexts/CommitmentsContext";
+import { supabase } from "../lib/supabase";
+import { getFeed, getChallenge } from "../lib/api";
+import type { PostWithCounts, ChallengeOut } from "../lib/types";
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 export default function HomeScreen({ navigation, route }: Props) {
   const { user: routeUser } = route.params || {};
   const { addCommitment, hasCommitment } = useCommitments();
-  
+
   // Create a mock user if none provided (for navigation from other screens)
   const user = routeUser || {
-    id: 'dev-user',
-    phone_number: '+1234567890',
-    first_name: 'Dev',
-    last_name: 'User',
+    id: "dev-user",
+    phone_number: "+1234567890",
+    first_name: "Dev",
+    last_name: "User",
     created_at: new Date().toISOString(),
   };
-  
+
   const [posts, setPosts] = useState<SocialPost[]>([]);
   const [index, setIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [routes] = useState([
-    { key: 'home', title: 'Home', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
-    { key: 'settings', title: 'Settings', focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
+    {
+      key: "home",
+      title: "Home",
+      focusedIcon: "home",
+      unfocusedIcon: "home-outline",
+    },
+    {
+      key: "settings",
+      title: "Settings",
+      focusedIcon: "cog",
+      unfocusedIcon: "cog-outline",
+    },
   ]);
 
-  // Debug log for state changes
-  useEffect(() => {
-    console.log('Current posts state:', posts);
-  }, [posts]);
+  // Convert backend PostWithCounts + ChallengeOut to frontend SocialPost format
+  const mapPostToSocialPost = useCallback(
+    async (
+      post: PostWithCounts,
+      challenge: ChallengeOut,
+      accessToken: string
+    ): Promise<SocialPost> => {
+      // Get author profile info
+      let username = "Unknown User";
+      let handle = "@unknown";
 
-  // Load posts from AsyncStorage on component mount
-  useEffect(() => {
-    const loadPosts = async () => {
       try {
-        const storedPosts = await AsyncStorage.getItem('userPosts');
-        if (storedPosts) {
-          setPosts(JSON.parse(storedPosts));
+        // Fetch profile from Supabase profiles table directly
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username, full_name")
+          .eq("user_id", post.author_id)
+          .single();
+
+        if (profile) {
+          username = profile.full_name || profile.username || "Unknown User";
+          handle = profile.username ? `@${profile.username}` : "@unknown";
         }
-      } catch (error) {
-        console.error('Error loading posts:', error);
+      } catch (err) {
+        console.error("Error fetching profile:", err);
       }
-    };
-    loadPosts();
-  }, []);
 
-  // Save posts to AsyncStorage whenever they change
-  useEffect(() => {
-    const savePosts = async () => {
-      try {
-        await AsyncStorage.setItem('userPosts', JSON.stringify(posts));
-      } catch (error) {
-        console.error('Error saving posts:', error);
+      return {
+        id: post.id.toString(),
+        username,
+        handle,
+        timestamp: new Date(post.created_at).toLocaleDateString(),
+        content: challenge.title,
+        image: post.media_url || undefined,
+        upvotes: 0, // Not implemented yet
+        downvotes: 0, // Not implemented yet
+        stake: challenge.amount_cents / 100, // Convert cents to dollars
+        poolYes: post.for_amount_cents / 100,
+        poolNo: post.against_amount_cents / 100,
+        participantsYes: post.for_count,
+        participantsNo: post.against_count,
+        expiry:
+          challenge.ends_at ||
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        updates: [],
+      };
+    },
+    []
+  );
+
+  // Fetch posts from backend API
+  const fetchPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get the current session token
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.log("No session token, user might not be logged in");
+        setPosts([]);
+        setLoading(false);
+        return;
       }
-    };
-    savePosts();
-  }, [posts]);
 
-  // When Home screen receives focus, check route params and apply newChallenge / challengeUpdate
+      // Fetch feed from backend
+      const feedResponse = await getFeed(session.access_token);
+      console.log("Fetched feed:", feedResponse);
+
+      // For each post, fetch the challenge details and map to SocialPost
+      const socialPosts: SocialPost[] = [];
+      for (const post of feedResponse.items) {
+        try {
+          const challenge = await getChallenge(
+            session.access_token,
+            post.challenge_id
+          );
+          const socialPost = await mapPostToSocialPost(
+            post,
+            challenge,
+            session.access_token
+          );
+          socialPosts.push(socialPost);
+        } catch (err) {
+          console.error(`Error processing post ${post.id}:`, err);
+          // Skip this post if we can't fetch challenge details
+        }
+      }
+
+      setPosts(socialPosts);
+    } catch (err) {
+      console.error("Error fetching posts:", err);
+      setError("Failed to load posts. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [mapPostToSocialPost]);
+
+  // When Home screen receives focus, refresh posts from API
   const applyRouteParams = useCallback(async () => {
     try {
-      // First, reload the authoritative posts from AsyncStorage. This ensures
-      // any posts saved by other screens (e.g. ChallengeCreationScreen) are
-      // reflected in the feed immediately when Home receives focus.
-      const stored = await AsyncStorage.getItem('userPosts');
-      const storedPosts: SocialPost[] = stored ? JSON.parse(stored) : [];
+      // Refresh the feed from the API
+      await fetchPosts();
 
-      // Only update local state if storage differs to avoid loops
-      try {
-        const same = JSON.stringify(storedPosts) === JSON.stringify(posts);
-        if (!same) {
-          console.log('Reloading posts from AsyncStorage on focus:', storedPosts);
-          setPosts(storedPosts);
-        }
-      } catch (e) {
-        // fallback: always set
-        setPosts(storedPosts);
-      }
-
-      // Then process any route params if present (backwards compatible)
+      // Handle route params for backwards compatibility
       const params = route.params || {};
       const { newChallenge, challengeUpdate } = params as any;
 
       if (newChallenge) {
-        console.log('Applying newChallenge from params (rare case):', newChallenge);
-        const newPost: SocialPost = {
-          id: newChallenge.id,
-          username: `${user.first_name} ${user.last_name}`,
-          handle: `@${user.first_name.toLowerCase()}`,
-          timestamp: 'Just now',
-          content: newChallenge.title,
-          image: newChallenge.image,
-          upvotes: 0,
-          downvotes: 0,
-          stake: newChallenge.stake,
-          poolYes: 0,
-          poolNo: 0,
-          participantsYes: 0,
-          participantsNo: 0,
-          expiry: new Date(Date.now() + (newChallenge.expiryDays * 24 + newChallenge.expiryHours) * 60 * 60 * 1000).toISOString(),
-          updates: [],
-        };
-
-        // prepend if it's not already present
-        const exists = storedPosts.find(p => p.id === newPost.id);
-        if (!exists) {
-          const updatedPosts = [newPost, ...storedPosts];
-          setPosts(updatedPosts);
-          await AsyncStorage.setItem('userPosts', JSON.stringify(updatedPosts));
-        }
-
+        console.log("New challenge created, feed refreshed");
         navigation.setParams({ newChallenge: undefined } as any);
-        Alert.alert('Success!', 'Your challenge has been created and shared with friends.');
-        return;
+        Alert.alert(
+          "Success!",
+          "Your challenge has been created and shared with friends."
+        );
       }
 
       if (challengeUpdate) {
-        console.log('Applying challengeUpdate from params (rare case):', challengeUpdate);
-        const updatedPosts = storedPosts.map(post => {
-          if (post.id === challengeUpdate.challengeId) {
-            return {
-              ...post,
-              updates: [
-                {
-                  id: Date.now().toString(),
-                  content: challengeUpdate.description,
-                  image: challengeUpdate.image,
-                  timestamp: challengeUpdate.timestamp,
-                },
-                ...(post.updates || []),
-              ],
-            };
-          }
-          return post;
-        });
-
-        setPosts(updatedPosts);
-        await AsyncStorage.setItem('userPosts', JSON.stringify(updatedPosts));
-
+        console.log("Challenge updated, feed refreshed");
         navigation.setParams({ challengeUpdate: undefined } as any);
-        Alert.alert('Success!', 'Your update has been posted.');
-        return;
+        Alert.alert("Success!", "Your update has been posted.");
       }
     } catch (err) {
-      console.error('Error applying route params:', err);
+      console.error("Error refreshing feed:", err);
     }
-  }, [navigation, route.params, posts, user]);
+  }, [navigation, route.params, fetchPosts]);
 
-  // Dev helper: reset AsyncStorage keys we use and clear local state
+  // Dev helper: reset AsyncStorage keys and refresh from API
   const handleResetStorage = async () => {
     try {
-      await AsyncStorage.removeItem('userPosts');
-      await AsyncStorage.removeItem('userChallenges');
-      setPosts([]);
-      Alert.alert('Storage Reset', 'Cleared userPosts and userChallenges from AsyncStorage.');
-      console.log('AsyncStorage keys userPosts and userChallenges removed');
+      await AsyncStorage.removeItem("userPosts");
+      await AsyncStorage.removeItem("userChallenges");
+      await fetchPosts();
+      Alert.alert(
+        "Storage Reset",
+        "Cleared local cache and refreshed from server."
+      );
+      console.log("AsyncStorage cleared and posts refreshed from API");
     } catch (err) {
-      console.error('Error clearing AsyncStorage:', err);
-      Alert.alert('Error', 'Failed to clear storage. Check console for details.');
+      console.error("Error clearing AsyncStorage:", err);
+      Alert.alert(
+        "Error",
+        "Failed to clear storage. Check console for details."
+      );
     }
   };
 
+  // Load posts on mount
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  // Refresh posts when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
       applyRouteParams();
     });
-    // also try applying once when mounting in case params were set while mounted
-    applyRouteParams();
     return unsubscribe;
   }, [navigation, applyRouteParams]);
 
-  const handleCommit = (postId: string, choice: 'yes' | 'no') => {
-    const post = posts.find(p => p.id === postId);
-    
+  const handleCommit = (postId: string, choice: "yes" | "no") => {
+    const post = posts.find((p) => p.id === postId);
+
     if (!post || !post.stake) {
       return;
     }
-    
+
     // Check if user already has a commitment on this post
     if (hasCommitment(postId)) {
-      Alert.alert('Already Committed', 'You have already committed to this challenge.');
+      Alert.alert(
+        "Already Committed",
+        "You have already committed to this challenge."
+      );
       return;
     }
-    
-    const choiceText = choice === 'yes' 
-      ? 'YES - I believe they will complete this challenge' 
-      : 'NO - I don\'t think they will complete this challenge';
-    
+
+    const choiceText =
+      choice === "yes"
+        ? "YES - I believe they will complete this challenge"
+        : "NO - I don't think they will complete this challenge";
+
     Alert.alert(
-      'Confirm Your Commitment',
+      "Confirm Your Commitment",
       `${choiceText}\n\nCommit: $${post.stake}\n\nThis commitment will be added to "Commits" and cannot be changed once confirmed.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Confirm',
-          style: 'default',
+          text: "Confirm",
+          style: "default",
           onPress: async () => {
             try {
-              // Build updated posts with locked userCommitment so selection persists
-              const updatedPosts = posts.map(p => {
+              // Optimistically update UI
+              const updatedPosts = posts.map((p) => {
                 if (p.id === postId) {
                   return {
                     ...p,
@@ -221,25 +258,45 @@ export default function HomeScreen({ navigation, route }: Props) {
                       choice,
                       locked: true,
                     },
-                    poolYes: choice === 'yes' ? (p.poolYes || 0) + (p.stake || 0) : (p.poolYes || 0),
-                    poolNo: choice === 'no' ? (p.poolNo || 0) + (p.stake || 0) : (p.poolNo || 0),
-                    participantsYes: choice === 'yes' ? (p.participantsYes || 0) + 1 : (p.participantsYes || 0),
-                    participantsNo: choice === 'no' ? (p.participantsNo || 0) + 1 : (p.participantsNo || 0),
+                    poolYes:
+                      choice === "yes"
+                        ? (p.poolYes || 0) + (p.stake || 0)
+                        : p.poolYes || 0,
+                    poolNo:
+                      choice === "no"
+                        ? (p.poolNo || 0) + (p.stake || 0)
+                        : p.poolNo || 0,
+                    participantsYes:
+                      choice === "yes"
+                        ? (p.participantsYes || 0) + 1
+                        : p.participantsYes || 0,
+                    participantsNo:
+                      choice === "no"
+                        ? (p.participantsNo || 0) + 1
+                        : p.participantsNo || 0,
                   };
                 }
                 return p;
               });
 
-              // Persist the updated posts immediately so selection stays across screens
               setPosts(updatedPosts);
-              await AsyncStorage.setItem('userPosts', JSON.stringify(updatedPosts));
 
               // Add to Commits (context)
-              const updatedPoolYes = choice === 'yes' ? (post.poolYes || 0) + post.stake : (post.poolYes || 0);
-              const updatedPoolNo = choice === 'no' ? (post.poolNo || 0) + post.stake : (post.poolNo || 0);
+              const updatedPoolYes =
+                choice === "yes"
+                  ? (post.poolYes || 0) + post.stake
+                  : post.poolYes || 0;
+              const updatedPoolNo =
+                choice === "no"
+                  ? (post.poolNo || 0) + post.stake
+                  : post.poolNo || 0;
               const totalPool = updatedPoolYes + updatedPoolNo;
-              const userSidePool = choice === 'yes' ? updatedPoolYes : updatedPoolNo;
-              const expectedPayout = userSidePool > 0 ? (post.stake / userSidePool) * totalPool : post.stake;
+              const userSidePool =
+                choice === "yes" ? updatedPoolYes : updatedPoolNo;
+              const expectedPayout =
+                userSidePool > 0
+                  ? (post.stake / userSidePool) * totalPool
+                  : post.stake;
 
               addCommitment({
                 id: `commitment-${postId}-${Date.now()}`,
@@ -254,57 +311,69 @@ export default function HomeScreen({ navigation, route }: Props) {
                 stake: post.stake,
                 poolYes: updatedPoolYes,
                 poolNo: updatedPoolNo,
-                participantsYes: choice === 'yes' ? (post.participantsYes || 0) + 1 : (post.participantsYes || 0),
-                participantsNo: choice === 'no' ? (post.participantsNo || 0) + 1 : (post.participantsNo || 0),
+                participantsYes:
+                  choice === "yes"
+                    ? (post.participantsYes || 0) + 1
+                    : post.participantsYes || 0,
+                participantsNo:
+                  choice === "no"
+                    ? (post.participantsNo || 0) + 1
+                    : post.participantsNo || 0,
                 expectedPayout: Math.round(expectedPayout * 100) / 100,
-                expiry: post.expiry || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                expiry:
+                  post.expiry ||
+                  new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
                 image: post.image,
                 isExpired: false,
                 updates: [],
               });
 
+              // TODO: Call backend API to save commitment
+
               // Show success message
-              Alert.alert('Commitment Made!', `Your commitment has been added to "Commits". You can view it in the Commits tab.`, [{ text: 'OK' }]);
+              Alert.alert(
+                "Commitment Made!",
+                `Your commitment has been added to "Commits". You can view it in the Commits tab.`,
+                [{ text: "OK" }]
+              );
             } catch (err) {
-              console.error('Error saving commitment:', err);
-              Alert.alert('Error', 'Failed to save your commitment. Please try again.');
+              console.error("Error saving commitment:", err);
+              Alert.alert(
+                "Error",
+                "Failed to save your commitment. Please try again."
+              );
             }
-          }
-        }
-      ]
-    );
-  };
-
-
-  const handleTabPress = (key: string) => {
-    if (key === 'commitments') {
-      navigation.replace('Commitments');
-    } else if (key === 'settings') {
-      navigation.replace('Profile');
-    }
-  };
-
-  const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: () => {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
           },
         },
       ]
     );
+  };
+
+  const handleTabPress = (key: string) => {
+    if (key === "commitments") {
+      navigation.replace("Commitments");
+    } else if (key === "settings") {
+      navigation.replace("Profile");
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: () => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          });
+        },
+      },
+    ]);
   };
 
   if (!user) {
@@ -314,7 +383,7 @@ export default function HomeScreen({ navigation, route }: Props) {
           <Text style={styles.errorText}>No user data available</Text>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => navigation.navigate('Login')}
+            onPress={() => navigation.navigate("Login")}
           >
             <Text style={styles.buttonText}>Go to Login</Text>
           </TouchableOpacity>
@@ -336,17 +405,35 @@ export default function HomeScreen({ navigation, route }: Props) {
           <Text style={styles.resetButtonText}>Reset Storage</Text>
         </TouchableOpacity>
       </View>
-      
+
       {/* Main Content */}
       <View style={styles.mainContent}>
         {index === 0 && (
           <>
-            {/* header reset moved to top */}
-            {posts.length === 0 ? (
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#6B8AFF" />
+                <Text style={styles.loadingText}>Loading feed...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity style={styles.button} onPress={fetchPosts}>
+                  <Text style={styles.buttonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : posts.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyTitle}>Stand by</Text>
-                <Text style={styles.emptyText}>No posts yet — create a challenge to get started.</Text>
-                <TouchableOpacity style={styles.emptyButton} onPress={() => navigation.navigate('ChallengeCreation' as any)}>
+                <Text style={styles.emptyText}>
+                  No posts yet — create a challenge to get started.
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyButton}
+                  onPress={() =>
+                    navigation.navigate("ChallengeCreation" as any)
+                  }
+                >
                   <Text style={styles.emptyButtonText}>Create Challenge</Text>
                 </TouchableOpacity>
               </View>
@@ -368,17 +455,13 @@ export default function HomeScreen({ navigation, route }: Props) {
             )}
           </>
         )}
-
       </View>
 
       {/* Floating + Button - Only on Home Tab */}
       <FloatingButton show={index === 0} />
 
       {/* Bottom Navigation */}
-      <BottomNavigation 
-        currentIndex={index}
-        onTabPress={handleTabPress}
-      />
+      <BottomNavigation currentIndex={index} onTabPress={handleTabPress} />
     </SafeAreaView>
   );
 }
@@ -386,97 +469,108 @@ export default function HomeScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFB',
+    backgroundColor: "#F8FAFB",
   },
   mainContent: {
     flex: 1,
   },
   scene: {
     flex: 1,
-    backgroundColor: '#F8FAFB',
+    backgroundColor: "#F8FAFB",
   },
   feedContainer: {
     paddingBottom: 80,
   },
   resetButton: {
-    backgroundColor: '#EFEFEF',
+    backgroundColor: "#EFEFEF",
     paddingVertical: 8,
     paddingHorizontal: 12,
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
     borderRadius: 6,
     margin: 12,
   },
   resetButtonText: {
-    color: '#111827',
+    color: "#111827",
     fontSize: 12,
   },
   appHeader: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   appTitle: {
-    color: '#000000',
+    color: "#000000",
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  loadingText: {
+    color: "#9CA3AF",
+    fontSize: 15,
+    marginTop: 16,
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 32,
   },
   emptyTitle: {
-    color: '#1A1D2E',
+    color: "#1A1D2E",
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 8,
   },
   emptyText: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 15,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 22,
     marginBottom: 24,
   },
   emptyButton: {
-    backgroundColor: '#6B8AFF',
+    backgroundColor: "#6B8AFF",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 10,
   },
   emptyButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 32,
   },
   errorText: {
-    color: '#FF6B6B',
+    color: "#FF6B6B",
     fontSize: 16,
     marginBottom: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   button: {
-    backgroundColor: '#6B8AFF',
+    backgroundColor: "#6B8AFF",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

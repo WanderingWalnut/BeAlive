@@ -6,6 +6,15 @@ export type MeUpdate = {
   avatar_url?: string;
 };
 
+export type ProfileOut = {
+  user_id: string;
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type CreatePostRequest = {
   challenge_id?: number;
   new_challenge?: {
@@ -30,6 +39,11 @@ export type PostWithCounts = {
   against_count: number;
   for_amount_cents: number;
   against_amount_cents: number;
+};
+
+export type FeedResponse = {
+  items: PostWithCounts[];
+  next_cursor: string | null;
 };
 
 export type PresignRequest = {
