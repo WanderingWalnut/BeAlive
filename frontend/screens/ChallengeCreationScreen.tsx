@@ -23,6 +23,7 @@ import { IconButton } from "react-native-paper";
 import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../providers/AuthProvider";
 import { createPost, directUpload, updatePostMedia, getUserChallenges } from "../lib/api";
+import { getMe } from '../lib/api/profiles';
 
 type Props = NativeStackScreenProps<RootStackParamList, "ChallengeCreation">;
 
@@ -44,14 +45,15 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
   useEffect(() => {
     const loadUserChallenges = async () => {
       if (!accessToken) return;
-
       try {
         setLoadingChallenges(true);
-        const challenges = await getUserChallenges(accessToken);
-        // Map to simple format for UI
-        setUserChallenges(
-          challenges.map((c) => ({ id: c.id, title: c.title }))
-        );
+        const [me, challenges] = await Promise.all([
+          getMe(accessToken),
+          getUserChallenges(accessToken),
+        ]);
+        // Only show challenges where owner_id matches current user
+        const myChallenges = challenges.filter((c) => c.owner_id === me.user_id);
+        setUserChallenges(myChallenges.map((c) => ({ id: c.id, title: c.title })));
       } catch (error) {
         console.error("Error loading challenges:", error);
         // Fallback to AsyncStorage
