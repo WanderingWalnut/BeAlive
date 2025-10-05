@@ -8,6 +8,13 @@ import {
 } from 'react-native';
 import { IconButton } from 'react-native-paper';
 
+interface Update {
+  id: string;
+  content: string;
+  image?: string;
+  timestamp: string;
+}
+
 interface SocialPostProps {
   id: string;
   username: string;
@@ -18,6 +25,7 @@ interface SocialPostProps {
   verified?: boolean;
   upvotes: number;
   downvotes: number;
+  updates?: Update[];
   onUpvote: () => void;
   onDownvote: () => void;
   // Betting properties
@@ -53,6 +61,7 @@ export default function SocialPost({
   expiry,
   userCommitment,
   onCommit,
+  updates = [],
 }: SocialPostProps) {
   // Format expiry date
   const formatExpiry = (expiryDate: string | undefined) => {
@@ -105,6 +114,22 @@ export default function SocialPost({
           <Image source={{ uri: image }} style={styles.contentImage} />
         )}
       </View>
+
+      {/* Updates */}
+      {updates && updates.length > 0 && (
+        <View style={styles.updatesContainer}>
+          <Text style={styles.updatesTitle}>Updates</Text>
+          {updates.map((update, index) => (
+            <View key={update.id} style={styles.update}>
+              <Text style={styles.updateTimestamp}>{update.timestamp}</Text>
+              <Text style={styles.updateContent}>{update.content}</Text>
+              {update.image && (
+                <Image source={{ uri: update.image }} style={styles.updateImage} />
+              )}
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Interaction Bar */}
       <View style={styles.interactions}>
@@ -190,7 +215,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#FFFFFF',
     paddingBottom: 16,
-    marginBottom: 8,
+    marginBottom: 12,
     borderRadius: 12,
     marginHorizontal: 12,
     shadowColor: '#000',
@@ -302,5 +327,41 @@ const styles = StyleSheet.create({
   },
   lockedItem: {
     opacity: 0.7,
+  },
+  updatesContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  updatesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1D2E',
+    marginBottom: 8,
+  },
+  update: {
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+  },
+  updateTimestamp: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  updateContent: {
+    fontSize: 14,
+    color: '#1A1D2E',
+    lineHeight: 20,
+  },
+  updateImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    marginTop: 8,
+    resizeMode: 'cover',
   },
 });

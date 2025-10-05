@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 import { IconButton } from 'react-native-paper';
@@ -22,42 +23,98 @@ import * as ImagePicker from 'expo-image-picker';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChallengeCreation'>;
 
+type Mode = 'new' | 'update';
+
 export default function ChallengeCreationScreen({ navigation }: Props) {
+  const [activeMode, setActiveMode] = useState<Mode>('new');
+  const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
+  // Track user created challenges
+  const [userChallenges, setUserChallenges] = useState<Array<{id: string, title: string}>>([]);
+  
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const stake = '5'; // Fixed stake amount
+  const commit = '5'; // Fixed commit amount
   const [expiryDays, setExpiryDays] = useState('7');
   const [expiryHours, setExpiryHours] = useState('0');
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const handleCreateChallenge = async () => {
-    if (!title.trim()) {
+    if (activeMode === 'update') {
+      if (!selectedChallengeId) {
+        Alert.alert('Missing Selection', 'Please select a challenge to update.');
+        return;
+      }
+      if (!description.trim()) {
+        Alert.alert('Missing Information', 'Please add an update description.');
+        return;
+      }
+    } else if (!title.trim()) {
       Alert.alert('Missing Information', 'Please add a challenge title.');
       return;
     }
 
     if (!selectedImage) {
-      Alert.alert('Missing Photo', 'Please take a photo to prove your challenge.');
+      Alert.alert('Missing Photo', 'Please take a photo.');
       return;
     }
 
     try {
       setLoading(true);
       
-      // Navigate back to Home with the new challenge data
-      navigation.navigate('Home', {
-        newChallenge: {
+      if (activeMode === 'new') {
+        // Create a new challenge
+        const challengeId = Date.now().toString();
+        const newChallenge = {
           title: title.trim(),
           description: description.trim(),
-          stake: 5, // Fixed stake amount
+          stake: 5, // Fixed commit amount
           expiryDays: parseInt(expiryDays) || 7,
           expiryHours: parseInt(expiryHours) || 0,
           image: selectedImage,
-        },
-      });
+        };
+
+        // Add to user's challenges
+        const updatedChallenges = [...userChallenges, { id: challengeId, title: title.trim() }];
+        setUserChallenges(updatedChallenges);
+
+        // Navigate back to Home with the new challenge
+        navigation.navigate('Home', {
+          newChallenge: {
+            ...newChallenge,
+            id: challengeId,
+          },
+        });
+      } else {
+        // Handle challenge update
+        const selectedChallenge = userChallenges.find(c => c.id === selectedChallengeId);
+        if (!selectedChallenge) {
+          Alert.alert('Error', 'Selected challenge not found.');
+          return;
+        }
+
+        // Create the challenge update
+        const update = {
+          challengeId: selectedChallengeId!,  // We know it's not null because we checked above
+          description: description.trim(),
+          image: selectedImage,
+          timestamp: new Date().toISOString(),
+        };
+
+        // Navigate back to Home with the update
+        navigation.navigate('Home', {
+          challengeUpdate: update,
+        });
+
+        // Clear the form
+        setDescription('');
+        setSelectedImage(null);
+      }
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to create challenge. Please try again.');
+      Alert.alert('Error', activeMode === 'new' 
+        ? 'Failed to create challenge. Please try again.'
+        : 'Failed to post update. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -128,13 +185,35 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.cancelButton}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Challenge</Text>
+        <Text style={styles.headerTitle}>Challenge</Text>
         <TouchableOpacity
           onPress={handleCreateChallenge}
           disabled={!title.trim() || !selectedImage || loading}
           style={[styles.createButton, (!title.trim() || !selectedImage || loading) && styles.createButtonDisabled]}
         >
-          <Text style={styles.createButtonText}>Create</Text>
+          <Text style={styles.createButtonText}>
+            {activeMode === 'new' ? 'Create' : 'Post Update'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Mode Selector */}
+      <View style={styles.modeSelector}>
+        <TouchableOpacity 
+          style={[styles.modeTab, activeMode === 'new' && styles.modeTabActive]}
+          onPress={() => setActiveMode('new')}
+        >
+          <Text style={[styles.modeTabText, activeMode === 'new' && styles.modeTabTextActive]}>
+            Create
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.modeTab, activeMode === 'update' && styles.modeTabActive]}
+          onPress={() => setActiveMode('update')}
+        >
+          <Text style={[styles.modeTabText, activeMode === 'update' && styles.modeTabTextActive]}>
+            Update
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -156,7 +235,7 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
                 </View>
               ) : (
                 <View style={styles.photoOptions}>
-                  <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
+                  <TouchableOpacity style={[styles.photoButton, { flex: undefined, width: '100%' }]} onPress={handleTakePhoto}>
                     <IconButton
                       icon="camera"
                       size={32}
@@ -165,91 +244,136 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
                     />
                     <Text style={styles.photoButtonText}>Take Photo</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.photoButton} onPress={handleSelectImage}>
-                    <IconButton
-                      icon="image"
-                      size={32}
-                      iconColor="#6B8AFF"
-                      style={styles.cameraIcon}
-                    />
-                    <Text style={styles.photoButtonText}>Choose Photo</Text>
-                  </TouchableOpacity>
                 </View>
               )}
             </View>
 
-            {/* Challenge Details */}
-            <View style={styles.formSection}>
-              <Text style={styles.sectionTitle}>Challenge Details</Text>
-              
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Challenge Title</Text>
-                <TextInput
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="e.g., Will I go to the gym 5 days this week?"
-                  placeholderTextColor="#6b7280"
-                  style={styles.input}
-                  maxLength={100}
-                />
-                <Text style={styles.characterCount}>{title.length}/100</Text>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Description</Text>
-                <TextInput
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="Add more details about your challenge..."
-                  placeholderTextColor="#6b7280"
-                  style={[styles.input, styles.textArea]}
-                  multiline
-                  numberOfLines={4}
-                  maxLength={500}
-                />
-                <Text style={styles.characterCount}>{description.length}/500</Text>
-              </View>
-            </View>
-
-            {/* Settings */}
-            <View style={styles.settingsSection}>
-              <Text style={styles.sectionTitle}>Challenge Settings</Text>
-              
-              <View style={styles.settingCard}>
-                <View style={styles.settingHeader}>
-                  <Text style={styles.settingLabel}>Stake Amount</Text>
-                  <Text style={styles.settingDescription}>Fixed amount for all commitments</Text>
-                </View>
-                <View style={styles.settingInput}>
-                  <Text style={styles.currencySymbol}>$5</Text>
-                </View>
-              </View>
-
-              <View style={styles.settingCard}>
-                <View style={styles.settingHeader}>
-                  <Text style={styles.settingLabel}>Expires In</Text>
-                  <Text style={styles.settingDescription}>How long the challenge lasts</Text>
-                </View>
-                <View style={styles.settingInput}>
+            {activeMode === 'new' ? (
+              /* New Challenge Form */
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>Challenge Details</Text>
+                
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Challenge Title</Text>
                   <TextInput
-                    value={expiryDays}
-                    onChangeText={setExpiryDays}
-                    keyboardType="numeric"
-                    style={styles.expiryInput}
-                    maxLength={2}
+                    value={title}
+                    onChangeText={setTitle}
+                    placeholder="e.g., Will I go to the gym 5 days this week?"
+                    placeholderTextColor="#6b7280"
+                    style={styles.input}
+                    maxLength={100}
                   />
-                  <Text style={styles.unitText}>days</Text>
+                  <Text style={styles.characterCount}>{title.length}/100</Text>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Description</Text>
                   <TextInput
-                    value={expiryHours}
-                    onChangeText={setExpiryHours}
-                    keyboardType="numeric"
-                    style={[styles.expiryInput, { marginLeft: 8 }]}
-                    maxLength={2}
+                    value={description}
+                    onChangeText={setDescription}
+                    placeholder="Add more details about your challenge..."
+                    placeholderTextColor="#6b7280"
+                    style={[styles.input, styles.textArea]}
+                    multiline
+                    numberOfLines={4}
+                    maxLength={500}
                   />
-                  <Text style={styles.unitText}>hours</Text>
+                  <Text style={styles.characterCount}>{description.length}/500</Text>
                 </View>
               </View>
-            </View>
+            ) : (
+              /* Update Challenge Form */
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>Your Challenges</Text>
+                <ScrollView style={styles.challengeList}>
+                  {userChallenges.map((challenge) => (
+                    <TouchableOpacity
+                      key={challenge.id}
+                      style={[
+                        styles.challengeItem,
+                        selectedChallengeId === challenge.id && styles.challengeItemSelected
+                      ]}
+                      onPress={() => {
+                        setSelectedChallengeId(challenge.id);
+                        setTitle(challenge.title);
+                        setDescription('');
+                      }}
+                    >
+                      <View style={styles.challengeItemContent}>
+                        <Text style={styles.challengeItemTitle}>{challenge.title}</Text>
+                        {selectedChallengeId === challenge.id && (
+                          <IconButton
+                            icon="check-circle"
+                            size={24}
+                            iconColor="#6B8AFF"
+                            style={styles.selectedIcon}
+                          />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {title && (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Update Details</Text>
+                    <TextInput
+                      value={description}
+                      onChangeText={setDescription}
+                      placeholder="Share your progress update..."
+                      placeholderTextColor="#6b7280"
+                      style={[styles.input, styles.textArea]}
+                      multiline
+                      numberOfLines={4}
+                      maxLength={500}
+                    />
+                    <Text style={styles.characterCount}>{description.length}/500</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Settings - Only show for new challenges */}
+            {activeMode === 'new' && (
+              <View style={styles.settingsSection}>
+                <Text style={styles.sectionTitle}>Challenge Settings</Text>
+                
+                <View style={styles.settingCard}>
+                  <View style={styles.settingHeader}>
+                    <Text style={styles.settingLabel}>Commit Amount</Text>
+                    <Text style={styles.settingDescription}>Fixed amount for all participants</Text>
+                  </View>
+                  <View style={styles.settingInput}>
+                    <Text style={styles.currencySymbol}>$5</Text>
+                  </View>
+                </View>
+
+                <View style={styles.settingCard}>
+                  <View style={styles.settingHeader}>
+                    <Text style={styles.settingLabel}>Expires In</Text>
+                    <Text style={styles.settingDescription}>How long the challenge lasts</Text>
+                  </View>
+                  <View style={styles.settingInput}>
+                    <TextInput
+                      value={expiryDays}
+                      onChangeText={setExpiryDays}
+                      keyboardType="numeric"
+                      style={styles.expiryInput}
+                      maxLength={2}
+                    />
+                    <Text style={styles.unitText}>days</Text>
+                    <TextInput
+                      value={expiryHours}
+                      onChangeText={setExpiryHours}
+                      keyboardType="numeric"
+                      style={[styles.expiryInput, { marginLeft: 8 }]}
+                      maxLength={2}
+                    />
+                    <Text style={styles.unitText}>hours</Text>
+                  </View>
+                </View>
+              </View>
+            )}
 
             {/* End of Settings */}
           </ScrollView>
@@ -460,5 +584,70 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginLeft: 8,
   },
-
+  existingChallengeTitle: {
+    fontSize: 16,
+    color: '#1A1D2E',
+    fontWeight: '600',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#F8FAFB',
+    borderRadius: 12,
+  },
+  modeSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E5ED',
+  },
+  modeTab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  modeTabActive: {
+    borderBottomColor: '#6B8AFF',
+  },
+  modeTabText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#9CA3AF',
+  },
+  modeTabTextActive: {
+    color: '#6B8AFF',
+    fontWeight: '600',
+  },
+  challengeList: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  challengeItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E0E5ED',
+  },
+  challengeItemTitle: {
+    fontSize: 16,
+    color: '#1A1D2E',
+    fontWeight: '600',
+    flex: 1,
+  },
+  challengeItemSelected: {
+    backgroundColor: '#F8FAFB',
+    borderColor: '#6B8AFF',
+  },
+  challengeItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectedIcon: {
+    margin: 0,
+  },
 });

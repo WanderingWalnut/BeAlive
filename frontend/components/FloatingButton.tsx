@@ -2,8 +2,14 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
-export default function FloatingButton() {
+interface FloatingButtonProps {
+  show?: boolean;
+}
+
+export default function FloatingButton({ show = true }: FloatingButtonProps) {
   const navigation = useNavigation();
+
+  if (!show) return null;
 
   return (
     <TouchableOpacity 

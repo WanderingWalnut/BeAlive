@@ -20,7 +20,7 @@ import { useCommitments } from '../contexts/CommitmentsContext';
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export default function HomeScreen({ navigation, route }: Props) {
-  const { user: routeUser, newChallenge } = route.params || {};
+  const { user: routeUser, newChallenge, challengeUpdate } = route.params || {};
   const { addCommitment, hasCommitment } = useCommitments();
   
   // Create a mock user if none provided (for navigation from other screens)
@@ -39,11 +39,11 @@ export default function HomeScreen({ navigation, route }: Props) {
     { key: 'settings', title: 'Settings', focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
   ]);
 
-  // Handle new challenge creation
+  // Handle new challenge creation and updates
   useEffect(() => {
     if (newChallenge) {
       const newPost: SocialPost = {
-        id: `challenge-${Date.now()}`,
+        id: newChallenge.id,
         username: `${user.first_name} ${user.last_name}`,
         handle: `@${user.first_name.toLowerCase()}`,
         timestamp: 'Just now',
@@ -57,6 +57,7 @@ export default function HomeScreen({ navigation, route }: Props) {
         participantsYes: 0,
         participantsNo: 0,
         expiry: new Date(Date.now() + (newChallenge.expiryDays * 24 + newChallenge.expiryHours) * 60 * 60 * 1000).toISOString(),
+        updates: [],
       };
 
       setPosts(prevPosts => [newPost, ...prevPosts]);
@@ -66,7 +67,34 @@ export default function HomeScreen({ navigation, route }: Props) {
       
       Alert.alert('Success!', 'Your challenge has been created and shared with friends.');
     }
-  }, [newChallenge]);
+
+    if (challengeUpdate) {
+      setPosts(prevPosts => {
+        return prevPosts.map(post => {
+          if (post.id === challengeUpdate.challengeId) {
+            return {
+              ...post,
+              updates: [
+                {
+                  id: Date.now().toString(),
+                  content: challengeUpdate.description,
+                  image: challengeUpdate.image,
+                  timestamp: challengeUpdate.timestamp,
+                },
+                ...(post.updates || []),
+              ],
+            };
+          }
+          return post;
+        });
+      });
+
+      // Clear the challengeUpdate from route params
+      navigation.setParams({ challengeUpdate: undefined } as any);
+      
+      Alert.alert('Success!', 'Your update has been posted.');
+    }
+  }, [newChallenge, challengeUpdate]);
 
   const handleCommit = (postId: string, choice: 'yes' | 'no') => {
     const post = posts.find(p => p.id === postId);

@@ -1,3 +1,5 @@
+import { Update } from '../types/update';
+
 export interface SocialPost {
   id: string;
   username: string;
@@ -9,16 +11,17 @@ export interface SocialPost {
   upvotes: number;
   downvotes: number;
   // Betting properties
-  stake?: number;
-  poolYes?: number;
-  poolNo?: number;
-  participantsYes?: number;
-  participantsNo?: number;
-  expiry?: string; // ISO string for expiration date
+  stake: number;
+  poolYes: number;
+  poolNo: number;
+  participantsYes: number;
+  participantsNo: number;
+  expiry: string; // ISO string for expiration date
   userCommitment?: {
     choice: 'yes' | 'no';
     locked: boolean;
   };
+  updates?: Update[];
 }
 
 export const mockSocialPosts: SocialPost[] = [
@@ -37,6 +40,7 @@ export const mockSocialPosts: SocialPost[] = [
     participantsYes: 4,
     participantsNo: 2,
     expiry: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(), // 25 days
+    updates: [],
   },
   {
     id: '2',
@@ -48,12 +52,13 @@ export const mockSocialPosts: SocialPost[] = [
     verified: true,
     upvotes: 49,
     downvotes: 2,
-    stake: 15,
-    poolYes: 30,
-    poolNo: 45,
-    participantsYes: 2,
+    stake: 30,
+    poolYes: 150,
+    poolNo: 90,
+    participantsYes: 5,
     participantsNo: 3,
-    expiry: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days
+    expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+    updates: [],
   },
   {
     id: '3',
@@ -71,6 +76,7 @@ export const mockSocialPosts: SocialPost[] = [
     participantsYes: 4,
     participantsNo: 2,
     expiry: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days
+    updates: [],
   },
   {
     id: '4',
@@ -87,6 +93,7 @@ export const mockSocialPosts: SocialPost[] = [
     participantsYes: 3,
     participantsNo: 2,
     expiry: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days
+    updates: [],
   },
   {
     id: '5',
@@ -104,6 +111,7 @@ export const mockSocialPosts: SocialPost[] = [
     participantsYes: 4,
     participantsNo: 2,
     expiry: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days
+    updates: [],
   },
   {
     id: '6',
@@ -120,6 +128,7 @@ export const mockSocialPosts: SocialPost[] = [
     participantsYes: 3,
     participantsNo: 2,
     expiry: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(), // 20 days
+    updates: [],
   },
   {
     id: '7',
@@ -137,6 +146,7 @@ export const mockSocialPosts: SocialPost[] = [
     participantsYes: 3,
     participantsNo: 2,
     expiry: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(), // 6 days
+    updates: [],
   },
   {
     id: '8',
@@ -153,5 +163,6 @@ export const mockSocialPosts: SocialPost[] = [
     participantsYes: 3,
     participantsNo: 2,
     expiry: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days
+    updates: [],
   },
 ];
