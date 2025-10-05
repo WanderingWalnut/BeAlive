@@ -1,6 +1,7 @@
 from .common import (
     ConnectionStatus,
     CommitmentSide,
+    ProfileCreate,
     ProfileBase,
     ProfileUpdate,
     ProfileOut,
@@ -53,6 +54,7 @@ __all__ = [
     # common
     "ConnectionStatus",
     "CommitmentSide",
+    "ProfileCreate",
     "ProfileBase",
     "ProfileUpdate",
     "ProfileOut",

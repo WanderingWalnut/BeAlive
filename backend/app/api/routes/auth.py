@@ -16,6 +16,7 @@ from app.models import (
     MeSummary,
 )
 from app.services.aggregates import AggregatesService
+from app.services.profile_service import ProfileService
 
 
 def _extract_bearer_token(authorization: Optional[str]) -> str:
@@ -130,3 +131,23 @@ async def get_me_summary(authorization: Optional[str] = Header(None)) -> MeSumma
 
 
 # Network endpoints have been moved to routes/network.py
+
+
+@router.post("/profiles", response_model=ProfileOut, status_code=status.HTTP_201_CREATED)
+async def create_profile(body: ProfileUpdate, authorization: Optional[str] = Header(None)) -> ProfileOut:
+    """Create or upsert a user's profile using provided fields.
+
+    The authenticated user is derived from the Supabase JWT. This endpoint intentionally
+    ignores any user_id in the body and writes only to the caller's profile row.
+    """
+    token = _extract_bearer_token(authorization)
+    user_payload = _get_supabase_user_from_token(token)
+    user_id = UUID(user_payload["id"])  # type: ignore[arg-type]
+
+    svc = ProfileService()
+    return svc.upsert_profile(
+        user_id=user_id,
+        username=body.username,
+        full_name=body.full_name,
+        avatar_url=body.avatar_url,
+    )
