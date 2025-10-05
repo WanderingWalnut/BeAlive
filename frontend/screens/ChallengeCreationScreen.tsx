@@ -66,7 +66,7 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -235,7 +235,7 @@ export default function ChallengeCreationScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#F8FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -243,30 +243,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#E0E5ED',
   },
   cancelButton: {
-    color: '#6b7280',
+    color: '#9CA3AF',
     fontSize: 16,
     fontWeight: '500',
   },
   headerTitle: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 18,
     fontWeight: '600',
   },
   createButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#4f46e5',
-    borderRadius: 8,
+    backgroundColor: '#6B8AFF',
+    borderRadius: 12,
   },
   createButtonDisabled: {
     opacity: 0.5,
   },
   createButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -282,17 +283,17 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
   },
   photoButton: {
     height: 120,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#374151',
+    borderColor: '#E0E5ED',
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -301,14 +302,14 @@ const styles = StyleSheet.create({
     margin: 0,
   },
   photoButtonText: {
-    color: '#4f46e5',
+    color: '#6B8AFF',
     fontSize: 16,
     fontWeight: '600',
     marginTop: 8,
     marginBottom: 4,
   },
   photoHelperText: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 12,
   },
   imageContainer: {
@@ -341,19 +342,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    color: '#e5e7eb',
+    color: '#1A1D2E',
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
   },
   input: {
     height: 48,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 12,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#374151',
-    color: '#fff',
+    borderColor: '#E0E5ED',
+    color: '#1A1D2E',
     fontSize: 14,
   },
   textArea: {
@@ -362,7 +363,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   characterCount: {
-    color: '#6b7280',
+    color: '#9CA3AF',
     fontSize: 12,
     textAlign: 'right',
     marginTop: 4,
@@ -371,24 +372,24 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   settingCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#E0E5ED',
   },
   settingHeader: {
     marginBottom: 12,
   },
   settingLabel: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
   },
   settingDescription: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 12,
   },
   settingInput: {
@@ -396,7 +397,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   currencySymbol: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 16,
     fontWeight: '600',
     marginRight: 8,
@@ -404,27 +405,27 @@ const styles = StyleSheet.create({
   stakeInput: {
     width: 60,
     height: 36,
-    backgroundColor: '#000',
-    borderRadius: 6,
+    backgroundColor: '#F8FAFB',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#4f46e5',
-    color: '#fff',
+    borderColor: '#6B8AFF',
+    color: '#1A1D2E',
     fontSize: 14,
     textAlign: 'center',
   },
   expiryInput: {
     width: 50,
     height: 36,
-    backgroundColor: '#000',
-    borderRadius: 6,
+    backgroundColor: '#F8FAFB',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#4f46e5',
-    color: '#fff',
+    borderColor: '#6B8AFF',
+    color: '#1A1D2E',
     fontSize: 14,
     textAlign: 'center',
   },
   unitText: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 12,
     marginLeft: 8,
   },
@@ -432,11 +433,16 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   previewCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#E0E5ED',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   previewHeader: {
     flexDirection: 'row',
@@ -452,31 +458,31 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#6B8AFF',
     marginRight: 8,
   },
   previewUsername: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 14,
     fontWeight: '600',
   },
   previewHandle: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 12,
   },
   previewTime: {
-    color: '#6b7280',
+    color: '#9CA3AF',
     fontSize: 12,
   },
   previewTitle: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
     lineHeight: 20,
   },
   previewDescription: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 14,
     lineHeight: 18,
     marginBottom: 12,
@@ -490,12 +496,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   previewStatLabel: {
-    color: '#6b7280',
+    color: '#9CA3AF',
     fontSize: 12,
     marginRight: 4,
   },
   previewStatValue: {
-    color: '#4f46e5',
+    color: '#6B8AFF',
     fontSize: 12,
     fontWeight: '600',
   },

@@ -124,7 +124,7 @@ export default function HomeScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
       
       {/* Main Content */}
       <View style={styles.mainContent}>
@@ -147,8 +147,8 @@ export default function HomeScreen({ navigation, route }: Props) {
 
       </View>
 
-      {/* Floating + Button - Always Visible */}
-      <FloatingButton />
+      {/* Floating + Button - Only on Home Tab */}
+      <FloatingButton show={index === 0} />
 
       {/* Bottom Navigation */}
       <BottomNavigation 
@@ -162,14 +162,14 @@ export default function HomeScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#F8FAFB',
   },
   mainContent: {
     flex: 1,
   },
   scene: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#F8FAFB',
   },
   feedContainer: {
     paddingBottom: 80,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyText: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 16,
     textAlign: 'center',
   },
@@ -192,19 +192,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   errorText: {
-    color: '#ef4444',
+    color: '#FF6B6B',
     fontSize: 16,
     marginBottom: 16,
     textAlign: 'center',
   },
   button: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#6B8AFF',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

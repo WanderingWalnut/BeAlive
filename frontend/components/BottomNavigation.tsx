@@ -26,7 +26,7 @@ export default function BottomNavigation({ currentIndex, onTabPress }: BottomNav
           <IconButton
             icon={currentIndex === index ? route.focusedIcon : route.unfocusedIcon}
             size={24}
-            iconColor={currentIndex === index ? '#4f46e5' : '#9ca3af'}
+            iconColor={currentIndex === index ? '#6B8AFF' : '#9CA3AF'}
             style={styles.navIcon}
           />
           <Text style={[styles.navText, currentIndex === index && styles.activeNavText]}>
@@ -41,9 +41,9 @@ export default function BottomNavigation({ currentIndex, onTabPress }: BottomNav
 const styles = StyleSheet.create({
   bottomNav: {
     flexDirection: 'row',
-    backgroundColor: '#000',
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#1f2937',
+    borderTopColor: '#E0E5ED',
     height: 60,
     paddingBottom: 8,
     paddingTop: 8,
@@ -54,9 +54,9 @@ const styles = StyleSheet.create({
       width: 0,
       height: -2,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4,
   },
   navItem: {
     flex: 1,
@@ -73,11 +73,13 @@ const styles = StyleSheet.create({
     height: 24,
   },
   navText: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 10,
     marginTop: 2,
+    fontWeight: '500',
   },
   activeNavText: {
-    color: '#4f46e5',
+    color: '#6B8AFF',
+    fontWeight: '600',
   },
 });

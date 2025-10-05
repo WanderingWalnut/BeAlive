@@ -301,7 +301,7 @@ export default function CommitmentsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -333,36 +333,42 @@ export default function CommitmentsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#F8FAFB',
   },
   header: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#E0E5ED',
   },
   headerTitle: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 2,
   },
   headerSubtitle: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 12,
   },
   listContainer: {
     padding: 12,
   },
   card: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     marginBottom: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#2d2d2d',
+    borderColor: '#E0E5ED',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -370,21 +376,21 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#2d2d2d',
+    borderBottomColor: '#E0E5ED',
   },
   headerLeft: {
     flex: 1,
     marginRight: 12,
   },
   challengeTitle: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 2,
     lineHeight: 20,
   },
   creatorText: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 12,
   },
   headerRight: {
@@ -408,7 +414,8 @@ const styles = StyleSheet.create({
   investmentSection: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#2d2d2d',
+    borderBottomColor: '#E0E5ED',
+    backgroundColor: '#F8FAFB',
   },
   investmentRow: {
     flexDirection: 'row',
@@ -416,7 +423,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   investmentLabel: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -429,17 +436,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#10b981',
   },
   noBadge: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#FF6B6B',
   },
   choiceText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
   },
   poolStats: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#2d2d2d',
+    borderBottomColor: '#E0E5ED',
   },
   poolRow: {
     flexDirection: 'row',
@@ -447,11 +454,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   poolLabel: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 12,
   },
   poolValue: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 12,
     fontWeight: '500',
   },
@@ -461,15 +468,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#374151',
+    borderTopColor: '#E0E5ED',
   },
   payoutLabel: {
-    color: '#4f46e5',
+    color: '#6B8AFF',
     fontSize: 12,
     fontWeight: '600',
   },
   payoutValue: {
-    color: '#4f46e5',
+    color: '#6B8AFF',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -477,18 +484,18 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#2d2d2d',
+    borderBottomColor: '#E0E5ED',
   },
   outcomeWin: {
     backgroundColor: 'rgba(16, 185, 129, 0.1)',
   },
   outcomeLoss: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
   },
   outcomeText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
+    color: '#1A1D2E',
     marginBottom: 2,
   },
   payoutReceived: {
@@ -499,34 +506,40 @@ const styles = StyleSheet.create({
   expandButton: {
     padding: 12,
     alignItems: 'center',
-    backgroundColor: '#2d2d2d',
+    backgroundColor: '#F8FAFB',
+    borderTopWidth: 1,
+    borderTopColor: '#E0E5ED',
   },
   expandButtonText: {
-    color: '#4f46e5',
+    color: '#6B8AFF',
     fontSize: 12,
     fontWeight: '600',
   },
   expandedContent: {
     padding: 16,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#F8FAFB',
+    borderTopWidth: 1,
+    borderTopColor: '#E0E5ED',
   },
   updatesSection: {
     marginBottom: 16,
   },
   sectionHeader: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
   },
   updateItem: {
-    backgroundColor: '#2d2d2d',
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     padding: 10,
     marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#E0E5ED',
   },
   updateContent: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 12,
     marginBottom: 6,
   },
@@ -538,7 +551,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   updateTime: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 10,
   },
   participantsSection: {},
@@ -548,12 +561,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   participantCount: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 12,
     flex: 1,
   },
   participantAmount: {
-    color: '#4f46e5',
+    color: '#6B8AFF',
     fontSize: 12,
     fontWeight: '600',
   },

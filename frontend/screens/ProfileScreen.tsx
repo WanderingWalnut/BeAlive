@@ -73,7 +73,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFB" />
 
       {/* Custom Header */}
       <View style={styles.header}>
@@ -151,18 +151,19 @@ export default function ProfileScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#F8FAFB',
   },
   header: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#E0E5ED',
   },
   headerTitle: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 20,
     fontWeight: '700',
   },
@@ -172,8 +173,9 @@ const styles = StyleSheet.create({
   profileHeader: {
     alignItems: 'center',
     padding: 20,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#E0E5ED',
     marginBottom: 20,
   },
   profilePicture: {
@@ -181,14 +183,16 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     marginBottom: 10,
+    borderWidth: 3,
+    borderColor: '#6B8AFF',
   },
   username: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 22,
     fontWeight: '700',
   },
   handle: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 15,
     marginBottom: 15,
   },
@@ -202,12 +206,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statNumber: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 18,
     fontWeight: '700',
   },
   statLabel: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 13,
   },
   actionButtons: {
@@ -218,7 +222,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   actionButtonLabel: {
     fontSize: 14,
@@ -226,12 +230,12 @@ const styles = StyleSheet.create({
   },
   card: {
     marginHorizontal: 20,
-    backgroundColor: '#141419',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     marginBottom: 20,
   },
   logoutButtonLabel: {
-    color: '#ef4444',
+    color: '#FF6B6B',
     fontWeight: '600',
   },
   logoutButtonContent: {

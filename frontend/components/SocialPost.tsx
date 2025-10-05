@@ -162,10 +162,16 @@ export default function SocialPost({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#000',
+    backgroundColor: '#FFFFFF',
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    marginBottom: 8,
+    borderRadius: 12,
+    marginHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   header: {
     flexDirection: 'row',
@@ -184,6 +190,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#E0E5ED',
   },
   userDetails: {
     flex: 1,
@@ -194,23 +202,23 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   username: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 16,
     fontWeight: '600',
     marginRight: 4,
   },
   verified: {
-    color: '#4f46e5',
+    color: '#6B8AFF',
     fontSize: 14,
     marginRight: 4,
   },
   handle: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 14,
     marginRight: 4,
   },
   timestamp: {
-    color: '#6b7280',
+    color: '#9CA3AF',
     fontSize: 14,
   },
   content: {
@@ -218,7 +226,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   contentText: {
-    color: '#fff',
+    color: '#1A1D2E',
     fontSize: 16,
     lineHeight: 22,
     marginBottom: 12,
@@ -226,7 +234,7 @@ const styles = StyleSheet.create({
   contentImage: {
     width: '100%',
     height: 200,
-    borderRadius: 8,
+    borderRadius: 12,
     resizeMode: 'cover',
   },
   interactions: {
@@ -246,16 +254,16 @@ const styles = StyleSheet.create({
     height: 32,
   },
   interactionText: {
-    color: '#9ca3af',
+    color: '#9CA3AF',
     fontSize: 14,
     marginLeft: 4,
   },
   selectedItem: {
-    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+    backgroundColor: 'rgba(107, 138, 255, 0.1)',
     borderRadius: 8,
   },
   selectedText: {
-    color: '#4f46e5',
+    color: '#6B8AFF',
     fontWeight: '600',
   },
   lockedItem: {
