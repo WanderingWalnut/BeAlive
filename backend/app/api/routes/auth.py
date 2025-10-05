@@ -7,25 +7,10 @@ import urllib.request
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException, Header, status
-from pydantic import BaseModel
 
 from app.core.config import settings
 from app.services.supabase import get_supabase_client
-
-
-router = APIRouter()
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-class RegisterRequest(BaseModel):
-    email: str
-    password: str
-    first_name: str
-    last_name: str
+from app.models import ProfileOut, ProfileUpdate
 
 
 def _extract_bearer_token(authorization: Optional[str]) -> str:
@@ -60,9 +45,12 @@ def _get_supabase_user_from_token(access_token: str) -> Dict[str, Any]:
     return payload
 
 
+router = APIRouter()
+
+
 @router.get("/me")
-async def get_current_user_profile(authorization: Optional[str] = Header(None)):
-    """Return the current user's profile based on a Supabase JWT from the client.
+async def get_current_user_profile(authorization: Optional[str] = Header(None)) -> Optional[ProfileOut]:
+    """Return the current user's profile based on a Supabase JWT.
 
     Clients must send: Authorization: Bearer <access_token>
     """
@@ -80,12 +68,47 @@ async def get_current_user_profile(authorization: Optional[str] = Header(None)):
         data = getattr(profile_resp, "data", None) or []
 
     profile: Optional[Dict[str, Any]] = data[0] if isinstance(data, list) and data else None
+    return profile  # type: ignore[return-value]
 
-    return {
-        "user": {
-            "id": user_id,
-            "email": user_payload.get("email"),
-            "phone": user_payload.get("phone"),
-        },
-        "profile": profile,
-    }
+
+@router.patch("/me")
+async def update_current_user_profile(body: ProfileUpdate, authorization: Optional[str] = Header(None)) -> ProfileOut:
+    """Update the current user's profile fields.
+
+    Auth: same as GET /me; we use the Supabase JWT to derive user_id,
+    then update `public.profiles` where `user_id = auth.uid()`.
+    """
+    token = _extract_bearer_token(authorization)
+    user_payload = _get_supabase_user_from_token(token)
+    user_id = user_payload["id"]
+
+    # Only include provided fields
+    update_fields: Dict[str, Any] = {}
+    if body.username is not None:
+        update_fields["username"] = body.username
+    if body.full_name is not None:
+        update_fields["full_name"] = body.full_name
+    if body.avatar_url is not None:
+        update_fields["avatar_url"] = body.avatar_url
+
+    if not update_fields:
+        # Nothing to update; return current
+        client = get_supabase_client()
+        resp = client.table("profiles").select("*").eq("user_id", user_id).limit(1).execute()
+        data = getattr(resp, "data", None) or []
+        profile = data[0] if isinstance(data, list) and data else None
+        if not profile:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+        return profile  # type: ignore[return-value]
+
+    client = get_supabase_client()
+    # Upsert pattern to create the row if missing; relies on RLS allowing self-update
+    # If you prefer to require pre-existence, replace with update().
+    upsert_data = {"user_id": user_id, **update_fields}
+    result = client.table("profiles").upsert(upsert_data, on_conflict="user_id").select("*").eq("user_id", user_id).limit(1).execute()
+
+    data = getattr(result, "data", None) or []
+    profile = data[0] if isinstance(data, list) and data else None
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update profile")
+    return profile  # type: ignore[return-value]
