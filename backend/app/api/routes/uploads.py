@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, File, Form, UploadFile
 
 from app.models import PresignRequest, PresignResponse
 from app.services.uploads import UploadService
@@ -37,3 +37,35 @@ async def presign_upload(body: PresignRequest, user_id: UUID = Depends(_current_
     """
     svc = UploadService()
     return svc.presign(user_id=user_id, req=body)
+
+
+@router.post("/uploads/direct")
+async def direct_upload(
+    post_id: int = Form(..., ge=1),
+    file: UploadFile = File(...),
+    user_id: UUID = Depends(_current_user_id),
+):
+    """Upload the file via backend using the service role, bypassing Storage RLS.
+
+    Returns: { path: string } to be saved as media_url via PATCH /posts/{id}/media.
+    """
+    svc = UploadService()
+    try:
+        content = await file.read()
+        path = svc.direct_upload(
+            user_id=user_id,
+            post_id=post_id,
+            content=content,
+            filename=file.filename,
+            content_type=file.content_type,
+        )
+        return {"path": path}
+    except PermissionError as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(e))

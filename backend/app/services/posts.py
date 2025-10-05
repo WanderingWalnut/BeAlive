@@ -28,6 +28,8 @@ class PostService:
         """Create a post; optionally create a new challenge atomically using RPC."""
         # Intentionally ignore body.media_url on create to prevent uploads without a challenge/post linkage.
         params = {
+            # Explicitly pass the actor id so the DB function doesn't depend on auth.uid()
+            "p_actor_id": str(author_id),
             "p_challenge_id": body.challenge_id,
             "p_title": body.new_challenge.title if body.new_challenge else None,
             "p_description": body.new_challenge.description if body.new_challenge else None,
@@ -62,11 +64,11 @@ class PostService:
 
     def update_media(self, author_id: UUID, post_id: int, body: PostMediaUpdate) -> PostWithCounts:
         """Update media_url for a post (author-only; RLS enforces)."""
-        resp = (
-            self.client.table("posts").update({"media_url": body.media_url}).eq("id", post_id).select("*").limit(1).execute()
-        )
-        row = ((resp.data or []) or [None])[0]
-        if not row:
+        # Perform the update; supabase-py may not support chaining select() after update in this version
+        self.client.table("posts").update({"media_url": body.media_url}).eq("id", post_id).execute()
+        # Verify the post exists by reading back
+        check = self.client.table("posts").select("id").eq("id", post_id).limit(1).execute()
+        if not (check.data or []):
             raise ValueError("Post not found")
         # Recompute aggregates by reading from posts_with_counts
         pwc = (
